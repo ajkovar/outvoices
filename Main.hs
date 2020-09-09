@@ -6,6 +6,11 @@ module Main where
 import Graphics.PDF
 import Paths_HPDF
 import qualified Data.Text as T
+import Graphics.PDF.Typesetting
+import Person
+import System.IO 
+import Data.ByteString.Lazy as LBS
+import Data.Aeson as Aeson
 -- import Graphics.PDF.LowLevel.Types
 
 -- | Create a PDF string from an Haskell one
@@ -27,14 +32,16 @@ fontDebug theFont@(PDFFont f s) t = do
     --  fill $ Circle 10 200 10
     --  stroke $ Rectangle (10 :+ (200.0 - (getDescent f s))) ((10.0 + textWidth theFont t) :+ (200.0 - getDescent f s + getHeight f s))
 
-textTest :: AnyFont -> Draw ()
-textTest timesRoman  = do
+textTest :: T.Text -> AnyFont -> Draw ()
+textTest name timesRoman  = do
     strokeColor red
     fillColor blue
-    fontDebug (PDFFont timesRoman 48) ("This is a \\test\ntest\ntest test test test test test test test (éèçàù)!")
+    fontDebug (PDFFont timesRoman 48) (name)
 
 main :: IO()
 main = do
+    contents <- LBS.readFile "data/me.json"
+    let (Just person) = Aeson.decode contents :: Maybe Person
     let rect = PDFRect 0 0 612 792
     -- runPdf "demo.pdf" (standardDocInfo { author=toPDFString "alpheccar", compressed = False}) rect $ do
     Just timesRoman <- mkStdFont Times_Roman 
@@ -42,9 +49,8 @@ main = do
         page1 <- addPage Nothing
         newSection  "Text encoding" Nothing Nothing $ do
             drawWithPage page1 $ do
-               textTest timesRoman
+                textTest (Person.name $ person) timesRoman
                 drawText $ do startNewLine
-                textTest timesRoman
                 let style = Font (PDFFont timesRoman 8) red red
                     rect = Rectangle (310 :+ 780) (510 :+ 790) 
                     in displayFormattedText rect NormalParagraph style $ do 
