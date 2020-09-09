@@ -16,7 +16,7 @@ fontDebug :: PDFFont -> T.Text -> Draw ()
 fontDebug theFont@(PDFFont f s) t = do
      drawText $ do
          setFont theFont
-         textStart 10 10.0
+         textStart 10 702.0
          leading $ getHeight f s
          renderMode FillText
          displayText t
@@ -31,11 +31,11 @@ textTest :: AnyFont -> Draw ()
 textTest timesRoman  = do
     strokeColor red
     fillColor blue
-    fontDebug (PDFFont timesRoman 48) ("This is a \\test (éèçàù)!")
+    fontDebug (PDFFont timesRoman 48) ("This is a \\test\ntest\ntest test test test test test test test (éèçàù)!")
 
 main :: IO()
 main = do
-    let rect = PDFRect 0 0 600 400
+    let rect = PDFRect 0 0 612 792
     -- runPdf "demo.pdf" (standardDocInfo { author=toPDFString "alpheccar", compressed = False}) rect $ do
     Just timesRoman <- mkStdFont Times_Roman 
     runPdf "demo.pdf" (standardDocInfo { author = "alex", compressed = False}) rect $ do
@@ -43,3 +43,15 @@ main = do
         newSection  "Text encoding" Nothing Nothing $ do
             drawWithPage page1 $ do
                textTest timesRoman
+                drawText $ do startNewLine
+                textTest timesRoman
+                let style = Font (PDFFont timesRoman 8) red red
+                    rect = Rectangle (310 :+ 780) (510 :+ 790) 
+                    in displayFormattedText rect NormalParagraph style $ do 
+                        paragraph $ do
+                            txt $ "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor "
+                            txt $ "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud "
+                            txt $ "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute "
+                            txt $ "irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla "
+                            txt $ "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia "
+                            txt $ "deserunt mollit anim id est laborum."
