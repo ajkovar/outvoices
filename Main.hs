@@ -39,14 +39,9 @@ renderMyInfo person timesRoman  = do
   PDF.strokeColor PDF.black
   PDF.fillColor PDF.black
   let font = PDF.PDFFont timesRoman 10
-  let leftSide = (fmap (\f -> f person) [Person.name, Person.telephone])
-  let rightSide = (fmap (\f -> f person) [ Person.address, 
-                                           (\p -> (T.pack $ (T.unpack (Person.city p)) ++ ", " ++ (T.unpack (Person.zip p)))),
-                                           Person.zip,
-                                           Person.country
-                                         ])
-  renderLines font leftSide 400 750
-  renderLines font rightSide 500 750
+  let nameAndNumber = (fmap (\f -> f person) [Person.name, Person.telephone])
+  renderLines font nameAndNumber 400 750
+  renderLines font (Person.addressFields person) 500 750
 
 main :: IO()
 main = do
