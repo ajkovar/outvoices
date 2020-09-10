@@ -44,7 +44,7 @@ renderMyInfo person timesRoman  = do
   -- (Person.name $ person)
   strokeColor red
   fillColor blue
-  renderLines (PDFFont timesRoman 12) [(Person.name $ person), (Person.address $ person)]
+  renderLines (PDFFont timesRoman 12) (fmap (\f -> f person) [Person.name, Person.address])
 
 main :: IO()
 main = do
