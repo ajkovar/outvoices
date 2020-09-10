@@ -22,12 +22,12 @@ renderLine t = do
   PDF.displayText t
   PDF.startNewLine
 
-renderLines :: PDF.PDFFont -> [T.Text] -> PDF.Draw [()]
-renderLines theFont@(PDF.PDFFont f s) lines = do
+renderLines :: PDF.PDFFont -> [T.Text] -> Double -> Double -> PDF.Draw [()]
+renderLines theFont@(PDF.PDFFont f s) lines x y = do
   PDF.drawText $ do
     PDF.setFont theFont
-    PDF.textStart 10 702.0
-    PDF.leading $ PDF.getHeight f s
+    PDF.textStart x y
+    PDF.leading $ (PDF.getHeight f s) + 3
     PDF.renderMode PDF.FillText
     mapM renderLine lines 
     --  strokeColor $ Rgb 1 0 0
@@ -36,9 +36,17 @@ renderLines theFont@(PDF.PDFFont f s) lines = do
 
 renderMyInfo :: Person -> PDF.AnyFont -> PDF.Draw [()]
 renderMyInfo person timesRoman  = do
-  PDF.strokeColor PDF.red
-  PDF.fillColor PDF.blue
-  renderLines (PDF.PDFFont timesRoman 12) (fmap (\f -> f person) [Person.name, Person.address])
+  PDF.strokeColor PDF.black
+  PDF.fillColor PDF.black
+  let font = PDF.PDFFont timesRoman 10
+  let leftSide = (fmap (\f -> f person) [Person.name, Person.telephone])
+  let rightSide = (fmap (\f -> f person) [ Person.address, 
+                                           (\p -> (T.pack $ (T.unpack (Person.city p)) ++ ", " ++ (T.unpack (Person.zip p)))),
+                                           Person.zip,
+                                           Person.country
+                                         ])
+  renderLines font leftSide 400 750
+  renderLines font rightSide 500 750
 
 main :: IO()
 main = do
@@ -53,13 +61,13 @@ main = do
       PDF.drawWithPage page1 $ do
           renderMyInfo person timesRoman
           PDF.drawText $ do PDF.startNewLine
-          let style = Font (PDF.PDFFont timesRoman 8) PDF.red PDF.red
-              rect = PDF.Rectangle (310 PDF.:+ 780) (510 PDF.:+ 790) 
-              in displayFormattedText rect NormalParagraph style $ do 
-                PDF.paragraph $ do
-                  txt $ "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor "
-                  txt $ "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud "
-                  txt $ "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute "
-                  txt $ "irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla "
-                  txt $ "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia "
-                  txt $ "deserunt mollit anim id est laborum."
+        --   let style = Font (PDF.PDFFont timesRoman 8) PDF.red PDF.red
+        --       rect = PDF.Rectangle (310 PDF.:+ 780) (510 PDF.:+ 790) 
+        --       in displayFormattedText rect NormalParagraph style $ do 
+        --         PDF.paragraph $ do
+        --           txt $ "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor "
+        --           txt $ "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud "
+        --           txt $ "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute "
+        --           txt $ "irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla "
+        --           txt $ "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia "
+        --           txt $ "deserunt mollit anim id est laborum."

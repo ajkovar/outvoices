@@ -10,6 +10,11 @@ import Data.Text as T
 data Person = Person {
       name :: T.Text
     , address :: T.Text
+    , city :: T.Text
+    , state :: T.Text
+    , zip :: T.Text
+    , country :: T.Text
+    , telephone :: T.Text
     } deriving (Generic, Show)
 
 instance ToJSON Person where
