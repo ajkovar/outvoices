@@ -3,7 +3,7 @@
 
 module Main where
 
-import Graphics.PDF
+import qualified Graphics.PDF as PDF
 import Paths_HPDF
 import qualified Data.Text as T
 import Graphics.PDF.Typesetting
@@ -17,52 +17,46 @@ import Data.Aeson as Aeson
 -- toPDFString :: T.Text -> PDFString
 -- toPDFString = PDFString . encodeUtf16BE
 
-renderLine :: T.Text -> PDFText ()
+renderLine :: T.Text -> PDF.PDFText ()
 renderLine t = do
-  displayText t
-  startNewLine
+  PDF.displayText t
+  PDF.startNewLine
 
-renderLines :: PDFFont -> [T.Text] -> Draw [()]
-renderLines theFont@(PDFFont f s) lines = do
-  drawText $ do
-    setFont theFont
-    textStart 10 702.0
-    leading $ getHeight f s
-    renderMode FillText
+renderLines :: PDF.PDFFont -> [T.Text] -> PDF.Draw [()]
+renderLines theFont@(PDF.PDFFont f s) lines = do
+  PDF.drawText $ do
+    PDF.setFont theFont
+    PDF.textStart 10 702.0
+    PDF.leading $ PDF.getHeight f s
+    PDF.renderMode PDF.FillText
     mapM renderLine lines 
-    -- let renderLine t = do
-    --     displayText t
-    --     startNewLine
-    -- in mapM renderLine lines
     --  strokeColor $ Rgb 1 0 0
     --  stroke $ Line 10 200 612 200
-    --  fill $ Circle 10 200 10
     --  stroke $ Rectangle (10 :+ (200.0 - (getDescent f s))) ((10.0 + textWidth theFont t) :+ (200.0 - getDescent f s + getHeight f s))
 
-renderMyInfo :: Person -> AnyFont -> Draw [()]
+renderMyInfo :: Person -> PDF.AnyFont -> PDF.Draw [()]
 renderMyInfo person timesRoman  = do
-  -- (Person.name $ person)
-  strokeColor red
-  fillColor blue
-  renderLines (PDFFont timesRoman 12) (fmap (\f -> f person) [Person.name, Person.address])
+  PDF.strokeColor PDF.red
+  PDF.fillColor PDF.blue
+  renderLines (PDF.PDFFont timesRoman 12) (fmap (\f -> f person) [Person.name, Person.address])
 
 main :: IO()
 main = do
   contents <- LBS.readFile "data/me.json"
   let (Just person) = Aeson.decode contents :: Maybe Person
-  let rect = PDFRect 0 0 612 792
+  let rect = PDF.PDFRect 0 0 612 792
   -- runPdf "demo.pdf" (standardDocInfo { author=toPDFString "alpheccar", compressed = False}) rect $ do
-  Just timesRoman <- mkStdFont Times_Roman 
-  runPdf "demo.pdf" (standardDocInfo { author = "alex", compressed = False}) rect $ do
-    page1 <- addPage Nothing
-    newSection  "Text encoding" Nothing Nothing $ do
-      drawWithPage page1 $ do
+  Just timesRoman <- PDF.mkStdFont PDF.Times_Roman 
+  PDF.runPdf "demo.pdf" (PDF.standardDocInfo { PDF.author = "alex", PDF.compressed = False}) rect $ do
+    page1 <- PDF.addPage Nothing
+    PDF.newSection  "Text encoding" Nothing Nothing $ do
+      PDF.drawWithPage page1 $ do
           renderMyInfo person timesRoman
-          drawText $ do startNewLine
-          let style = Font (PDFFont timesRoman 8) red red
-              rect = Rectangle (310 :+ 780) (510 :+ 790) 
+          PDF.drawText $ do PDF.startNewLine
+          let style = Font (PDF.PDFFont timesRoman 8) PDF.red PDF.red
+              rect = PDF.Rectangle (310 PDF.:+ 780) (510 PDF.:+ 790) 
               in displayFormattedText rect NormalParagraph style $ do 
-                paragraph $ do
+                PDF.paragraph $ do
                   txt $ "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor "
                   txt $ "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud "
                   txt $ "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute "
