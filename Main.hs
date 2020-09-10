@@ -19,12 +19,12 @@ import Data.Aeson as Aeson
 
 fontDebug :: PDFFont -> T.Text -> Draw ()
 fontDebug theFont@(PDFFont f s) t = do
-     drawText $ do
-         setFont theFont
-         textStart 10 702.0
-         leading $ getHeight f s
-         renderMode FillText
-         displayText t
+  drawText $ do
+    setFont theFont
+    textStart 10 702.0
+    leading $ getHeight f s
+    renderMode FillText
+    displayText t
         --  startNewLine
         --  displayText "Another little test"
     --  strokeColor $ Rgb 1 0 0
@@ -34,30 +34,30 @@ fontDebug theFont@(PDFFont f s) t = do
 
 textTest :: T.Text -> AnyFont -> Draw ()
 textTest name timesRoman  = do
-    strokeColor red
-    fillColor blue
-    fontDebug (PDFFont timesRoman 48) (name)
+  strokeColor red
+  fillColor blue
+  fontDebug (PDFFont timesRoman 48) (name)
 
 main :: IO()
 main = do
-    contents <- LBS.readFile "data/me.json"
-    let (Just person) = Aeson.decode contents :: Maybe Person
-    let rect = PDFRect 0 0 612 792
-    -- runPdf "demo.pdf" (standardDocInfo { author=toPDFString "alpheccar", compressed = False}) rect $ do
-    Just timesRoman <- mkStdFont Times_Roman 
-    runPdf "demo.pdf" (standardDocInfo { author = "alex", compressed = False}) rect $ do
-        page1 <- addPage Nothing
-        newSection  "Text encoding" Nothing Nothing $ do
-            drawWithPage page1 $ do
-                textTest (Person.name $ person) timesRoman
-                drawText $ do startNewLine
-                let style = Font (PDFFont timesRoman 8) red red
-                    rect = Rectangle (310 :+ 780) (510 :+ 790) 
-                    in displayFormattedText rect NormalParagraph style $ do 
-                        paragraph $ do
-                            txt $ "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor "
-                            txt $ "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud "
-                            txt $ "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute "
-                            txt $ "irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla "
-                            txt $ "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia "
-                            txt $ "deserunt mollit anim id est laborum."
+  contents <- LBS.readFile "data/me.json"
+  let (Just person) = Aeson.decode contents :: Maybe Person
+  let rect = PDFRect 0 0 612 792
+  -- runPdf "demo.pdf" (standardDocInfo { author=toPDFString "alpheccar", compressed = False}) rect $ do
+  Just timesRoman <- mkStdFont Times_Roman 
+  runPdf "demo.pdf" (standardDocInfo { author = "alex", compressed = False}) rect $ do
+    page1 <- addPage Nothing
+    newSection  "Text encoding" Nothing Nothing $ do
+      drawWithPage page1 $ do
+          textTest (Person.name $ person) timesRoman
+          drawText $ do startNewLine
+          let style = Font (PDFFont timesRoman 8) red red
+              rect = Rectangle (310 :+ 780) (510 :+ 790) 
+              in displayFormattedText rect NormalParagraph style $ do 
+                paragraph $ do
+                  txt $ "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor "
+                  txt $ "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud "
+                  txt $ "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute "
+                  txt $ "irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla "
+                  txt $ "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia "
+                  txt $ "deserunt mollit anim id est laborum."
