@@ -13,24 +13,36 @@ import Data.ByteString.Lazy as LBS
 import Data.Aeson as Aeson
 import qualified System.Console.CmdArgs as CArgs
 
+kingFisherDaisy :: PDF.Color
+kingFisherDaisy = PDF.Rgb 0.32 0.11 0.52
+
 data OutVoice = OutVoice {client_name :: String} deriving (Show, CArgs.Data, CArgs.Typeable)
 
 outvoice = OutVoice{client_name = CArgs.def CArgs.&= CArgs.help "Client to generate for (should match their data directory name)"}
          CArgs.&= CArgs.summary "Generate an invoice based on a csv input file"
 
-renderLine :: T.Text -> PDF.PDFText ()
-renderLine t = do
+displayLine :: T.Text -> PDF.PDFText ()
+displayLine t = do
   PDF.displayText t
   PDF.startNewLine
 
-renderLines :: PDF.PDFFont -> [T.Text] -> Double -> Double -> PDF.Draw [()]
-renderLines theFont@(PDF.PDFFont f s) lines x y = do
+drawLine :: PDF.PDFFont -> T.Text -> Double -> Double -> PDF.Draw ()
+drawLine theFont@(PDF.PDFFont f s) text x y = do
   PDF.drawText $ do
     PDF.setFont theFont
     PDF.textStart x y
     PDF.leading $ (PDF.getHeight f s) + 3
     PDF.renderMode PDF.FillText
-    mapM renderLine lines 
+    PDF.displayText text
+
+drawLines :: PDF.PDFFont -> [T.Text] -> Double -> Double -> PDF.Draw [()]
+drawLines theFont@(PDF.PDFFont f s) lines x y = do
+  PDF.drawText $ do
+    PDF.setFont theFont
+    PDF.textStart x y
+    PDF.leading $ (PDF.getHeight f s) + 3
+    PDF.renderMode PDF.FillText
+    mapM displayLine lines 
     --  strokeColor $ Rgb 1 0 0
     --  stroke $ Line 10 200 612 200
     --  stroke $ Rectangle (10 :+ (200.0 - (getDescent f s))) ((10.0 + textWidth theFont t) :+ (200.0 - getDescent f s + getHeight f s))
@@ -41,16 +53,19 @@ renderMyInfo person timesRoman  = do
   PDF.fillColor PDF.black
   let font = PDF.PDFFont timesRoman 10
   let nameAndNumber = (fmap (\f -> f person) [Person.name, Person.telephone])
-  renderLines font nameAndNumber 400 730
-  renderLines font (Person.addressFields person) 490 730
+  drawLines font nameAndNumber 400 730
+  drawLines font (Person.addressFields person) 490 730
 
 renderClientInfo :: Person -> PDF.AnyFont -> PDF.Draw [()]
 renderClientInfo client timesRoman  = do
+  let font = PDF.PDFFont timesRoman 10
+  PDF.strokeColor kingFisherDaisy
+  PDF.fillColor kingFisherDaisy
+  drawLine font "Billed To" 30 600
   PDF.strokeColor PDF.black
   PDF.fillColor PDF.black
-  let font = PDF.PDFFont timesRoman 10
   let fields = [Person.name client] ++ (Person.addressFields client)
-  renderLines font fields 30 600
+  drawLines font fields 30 587
 
 main :: IO()
 main = do
