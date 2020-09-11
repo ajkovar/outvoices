@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, MultiParamTypeClasses,OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables, MultiParamTypeClasses,OverloadedStrings,DeriveDataTypeable #-}
 {-# LANGUAGE CPP #-}
 
 module Main where
@@ -11,11 +11,12 @@ import Person
 import System.IO 
 import Data.ByteString.Lazy as LBS
 import Data.Aeson as Aeson
--- import Graphics.PDF.LowLevel.Types
+import qualified System.Console.CmdArgs as CArgs
 
--- | Create a PDF string from an Haskell one
--- toPDFString :: T.Text -> PDFString
--- toPDFString = PDFString . encodeUtf16BE
+data OutVoice = OutVoice {client_name :: String} deriving (Show, CArgs.Data, CArgs.Typeable)
+
+outvoice = OutVoice{client_name = CArgs.def CArgs.&= CArgs.help "Client to generate for (should match their data directory name)"}
+         CArgs.&= CArgs.summary "Generate an invoice based on a csv input file"
 
 renderLine :: T.Text -> PDF.PDFText ()
 renderLine t = do
@@ -40,13 +41,24 @@ renderMyInfo person timesRoman  = do
   PDF.fillColor PDF.black
   let font = PDF.PDFFont timesRoman 10
   let nameAndNumber = (fmap (\f -> f person) [Person.name, Person.telephone])
-  renderLines font nameAndNumber 400 750
-  renderLines font (Person.addressFields person) 500 750
+  renderLines font nameAndNumber 400 730
+  renderLines font (Person.addressFields person) 490 730
+
+renderClientInfo :: Person -> PDF.AnyFont -> PDF.Draw [()]
+renderClientInfo client timesRoman  = do
+  PDF.strokeColor PDF.black
+  PDF.fillColor PDF.black
+  let font = PDF.PDFFont timesRoman 10
+  let fields = [Person.name client] ++ (Person.addressFields client)
+  renderLines font fields 30 600
 
 main :: IO()
 main = do
+  userArgs <- CArgs.cmdArgs outvoice
   contents <- LBS.readFile "data/me.json"
+  clientContents <- LBS.readFile $ "data/" ++ (client_name userArgs) ++ "/info.json"
   let (Just person) = Aeson.decode contents :: Maybe Person
+  let (Just client) = Aeson.decode clientContents :: Maybe Person
   let rect = PDF.PDFRect 0 0 612 792
   -- runPdf "demo.pdf" (standardDocInfo { author=toPDFString "alpheccar", compressed = False}) rect $ do
   Just timesRoman <- PDF.mkStdFont PDF.Times_Roman 
@@ -55,6 +67,7 @@ main = do
     PDF.newSection  "Text encoding" Nothing Nothing $ do
       PDF.drawWithPage page1 $ do
           renderMyInfo person timesRoman
+          renderClientInfo client timesRoman
           PDF.drawText $ do PDF.startNewLine
         --   let style = Font (PDF.PDFFont timesRoman 8) PDF.red PDF.red
         --       rect = PDF.Rectangle (310 PDF.:+ 780) (510 PDF.:+ 790) 
