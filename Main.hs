@@ -16,10 +16,18 @@ import qualified System.Console.CmdArgs as CArgs
 kingFisherDaisy :: PDF.Color
 kingFisherDaisy = PDF.Rgb 0.32 0.11 0.52
 
-data OutVoice = OutVoice {client_name :: String} deriving (Show, CArgs.Data, CArgs.Typeable)
+data OutVoice = OutVoice {client_name :: String, 
+                          issue_date :: String, 
+                          due_date :: String,
+                          invoice_number :: String
+                         } deriving (Show, CArgs.Data, CArgs.Typeable)
 
-outvoice = OutVoice{client_name = CArgs.def CArgs.&= CArgs.help "Client to generate for (should match their data directory name)"}
-         CArgs.&= CArgs.summary "Generate an invoice based on a csv input file"
+outvoice = OutVoice{
+                      client_name = CArgs.def CArgs.&= CArgs.help "Client to generate for (should match their data directory name)",
+                      issue_date = CArgs.def CArgs.&= CArgs.help "Issue date",
+                      due_date = CArgs.def CArgs.&= CArgs.help "Due date",
+                      invoice_number = CArgs.def CArgs.&= CArgs.help "Invoice Number"
+                   } CArgs.&= CArgs.summary "Generate an invoice based on a csv input file"
 
 displayLine :: T.Text -> PDF.PDFText ()
 displayLine t = do
@@ -67,6 +75,16 @@ renderClientInfo client timesRoman  = do
   let fields = [Person.name client] ++ (Person.addressFields client)
   drawLines font fields 30 587
 
+renderTitledLine :: PDF.AnyFont -> T.Text -> T.Text -> Double -> Double -> PDF.Draw ()
+renderTitledLine fontType title line x y = do
+  let font = PDF.PDFFont fontType 10
+  PDF.strokeColor kingFisherDaisy
+  PDF.fillColor kingFisherDaisy
+  drawLine font title x y
+  PDF.strokeColor PDF.black
+  PDF.fillColor PDF.black
+  drawLine font line x (y - 13)
+
 main :: IO()
 main = do
   userArgs <- CArgs.cmdArgs outvoice
@@ -83,6 +101,9 @@ main = do
       PDF.drawWithPage page1 $ do
           renderMyInfo person timesRoman
           renderClientInfo client timesRoman
+          renderTitledLine timesRoman "Date of Issue" (T.pack $ issue_date userArgs) 180 600
+          renderTitledLine timesRoman "Due Date" (T.pack $ issue_date userArgs) 180 560
+          renderTitledLine timesRoman "Invoice Number" (T.pack $ issue_date userArgs) 280 600
           PDF.drawText $ do PDF.startNewLine
         --   let style = Font (PDF.PDFFont timesRoman 8) PDF.red PDF.red
         --       rect = PDF.Rectangle (310 PDF.:+ 780) (510 PDF.:+ 790) 
