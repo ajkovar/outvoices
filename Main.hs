@@ -156,8 +156,38 @@ main = do
             Left err -> return () -- System.IO.putStrLn err
             Right (_, v) -> do
               let total = V.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 v
-              renderAmountDue timesRoman "Amount Due" (T.pack $ "$" ++ format (total * (rate userArgs)))
+              let amountDue = (T.pack $ "$" ++ format (total * (rate userArgs)))
+              let zeroAmount = T.pack $ format 0.00
+              renderAmountDue timesRoman "Amount Due" amountDue
+
               V.imapM (renderRow timesRoman (rate userArgs)) v
+
+              let leftX = 420
+              let y = fromIntegral (440 - (V.length v) * 50) :: Double
+              setColor PDF.black
+              drawLine (PDF.PDFFont timesRoman 10) (T.pack "Subtotal") leftX y
+              drawLine (PDF.PDFFont timesRoman 10) amountDue 530 y
+              drawLine (PDF.PDFFont timesRoman 10) (T.pack "Tax") leftX (y - 16)
+              drawLine (PDF.PDFFont timesRoman 10) zeroAmount 530 (y - 16)
+
+              setColor $ PDF.Rgb 0.9 0.9 0.9
+              PDF.stroke $ PDF.Line 340 (y - 28) 580 (y - 28)
+
+              setColor PDF.black
+              drawLine (PDF.PDFFont timesRoman 10) (T.pack "Total") leftX (y - 44)
+              drawLine (PDF.PDFFont timesRoman 10) amountDue 530 (y - 44)
+              drawLine (PDF.PDFFont timesRoman 10) (T.pack "Amount Paid") leftX (y - 60)
+              drawLine (PDF.PDFFont timesRoman 10) zeroAmount 530 (y - 60)
+
+              setColor $ PDF.Rgb 0.9 0.9 0.9
+              PDF.stroke $ PDF.Line 340 (y - 74) 580 (y - 74)
+              PDF.stroke $ PDF.Line 340 (y - 76) 580 (y - 76)
+
+              setColor kingFisherDaisy
+              drawLine (PDF.PDFFont timesRoman 12) (T.pack "Amount Due") leftX (y - 94)
+              setColor PDF.black
+              drawLine (PDF.PDFFont timesRoman 10) amountDue 530 (y - 94)
+
               return ()
           return ()
         --   let style = Font (PDF.PDFFont timesRoman 8) PDF.red PDF.red
