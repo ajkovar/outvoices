@@ -9,12 +9,23 @@ import qualified Data.Text as T
 import Graphics.PDF.Typesetting
 import Person
 import System.IO 
-import Data.ByteString.Lazy as LBS
-import Data.Aeson as Aeson
+import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Aeson as Aeson
 import qualified System.Console.CmdArgs as CArgs
-import Data.Csv as Csv
+import qualified Data.Csv as Csv
 import qualified Data.Vector as V
 import qualified Timesheet
+
+import qualified Data.List.Split as Split
+import qualified Data.List as List
+
+format x = h++t
+  where
+    sp = break (== '.') $ show x
+    h = reverse (List.intercalate "," $ Split.splitEvery 3 $ reverse $ fst sp) 
+    t = case length $ snd sp of 3 -> (snd sp)
+                                2 -> (snd sp) ++ "0"
+                                _ -> (snd sp)
 
 kingFisherDaisy :: PDF.Color
 kingFisherDaisy = PDF.Rgb 0.32 0.11 0.52
@@ -120,11 +131,11 @@ main = do
           renderTitledLine timesRoman "Date of Issue" (T.pack $ issue_date userArgs) 180 600
           renderTitledLine timesRoman "Due Date" (T.pack $ issue_date userArgs) 180 560
           renderTitledLine timesRoman "Invoice Number" (T.pack $ issue_date userArgs) 280 600
-          case decodeByName csvData of
+          case Csv.decodeByName csvData of
             Left err -> return () -- System.IO.putStrLn err
             Right (_, v) -> do
               let total = V.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 v
-              renderAmountDue timesRoman "Amount Due" (T.pack $ show (total * (rate userArgs)))
+              renderAmountDue timesRoman "Amount Due" (T.pack $ "$" ++ format (total * (rate userArgs)))
           PDF.drawText $ do PDF.startNewLine
         --   let style = Font (PDF.PDFFont timesRoman 8) PDF.red PDF.red
         --       rect = PDF.Rectangle (310 PDF.:+ 780) (510 PDF.:+ 790) 
