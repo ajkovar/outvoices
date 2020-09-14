@@ -74,8 +74,6 @@ drawLines theFont@(PDF.PDFFont f s) lines x y = do
     PDF.leading $ (PDF.getHeight f s) + 3
     PDF.renderMode PDF.FillText
     mapM displayLine lines 
-    --  strokeColor $ Rgb 1 0 0
-    --  stroke $ Line 10 200 612 200
     --  stroke $ Rectangle (10 :+ (200.0 - (getDescent f s))) ((10.0 + textWidth theFont t) :+ (200.0 - getDescent f s + getHeight f s))
 
 renderMyInfo :: Person -> PDF.AnyFont -> PDF.Draw [()]
@@ -105,11 +103,28 @@ renderTitledLine fontType title line x y = do
 
 renderAmountDue :: PDF.AnyFont -> T.Text -> T.Text -> PDF.Draw ()
 renderAmountDue fontType title line = do
---   PDF.setJustification PDF.RightJustification
   setColor kingFisherDaisy
   drawLine (PDF.PDFFont fontType 10) title 480 600
   setColor PDF.black
   drawLine (PDF.PDFFont fontType 19) line 480 (600 - 17)
+
+renderRow ::PDF.AnyFont -> Double -> Int -> Timesheet.Timesheet -> PDF.Draw ()
+renderRow fontType rate i timesheetItem = do
+  let date = Timesheet.date timesheetItem
+  let y = (480.00 - (fromIntegral i :: Double) * 60.00)
+  let client = Timesheet.client timesheetItem
+  let project = Timesheet.project timesheetItem
+  let description = "(" ++ client ++ " - " ++ project ++ ") - " ++ date
+  let hours = (Timesheet.hours timesheetItem)
+  drawLine (PDF.PDFFont fontType 10) (T.pack "Time") 30 y
+  drawLine (PDF.PDFFont fontType 9) (T.pack description) 30 (y - 12)
+  drawLine (PDF.PDFFont fontType 9) (T.pack ((Timesheet.task timesheetItem) ++ " -")) 30 (y - 22)
+  drawLine (PDF.PDFFont fontType 8) (T.pack (Timesheet.notes timesheetItem)) 30 (y - 34)
+  drawLine (PDF.PDFFont fontType 8) (T.pack $ "$" ++ (format rate)) 400 y
+  drawLine (PDF.PDFFont fontType 8) (T.pack (show hours)) 460 y
+  drawLine (PDF.PDFFont fontType 8) (T.pack $ "$" ++ (format (rate * hours))) 520 y
+  setColor $ PDF.Rgb 0.9 0.9 0.9
+  PDF.stroke $ PDF.Line 30 (y - 50) 580 (y - 50)
 
 main :: IO()
 main = do
@@ -131,12 +146,20 @@ main = do
           renderTitledLine timesRoman "Date of Issue" (T.pack $ issue_date userArgs) 180 600
           renderTitledLine timesRoman "Due Date" (T.pack $ issue_date userArgs) 180 560
           renderTitledLine timesRoman "Invoice Number" (T.pack $ issue_date userArgs) 280 600
+          setColor kingFisherDaisy
+          PDF.stroke $ PDF.Line 30 520 580 520
+          drawLine (PDF.PDFFont timesRoman 9) (T.pack "Description") 30 500
+          drawLine (PDF.PDFFont timesRoman 9) (T.pack "Rate") 400 500
+          drawLine (PDF.PDFFont timesRoman 9) (T.pack "Qty") 460 500
+          drawLine (PDF.PDFFont timesRoman 9) (T.pack "Line Total") 520 500
           case Csv.decodeByName csvData of
             Left err -> return () -- System.IO.putStrLn err
             Right (_, v) -> do
               let total = V.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 v
               renderAmountDue timesRoman "Amount Due" (T.pack $ "$" ++ format (total * (rate userArgs)))
-          PDF.drawText $ do PDF.startNewLine
+              V.imapM (renderRow timesRoman (rate userArgs)) v
+              return ()
+          return ()
         --   let style = Font (PDF.PDFFont timesRoman 8) PDF.red PDF.red
         --       rect = PDF.Rectangle (310 PDF.:+ 780) (510 PDF.:+ 790) 
         --       in displayFormattedText rect NormalParagraph style $ do 
