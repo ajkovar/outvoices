@@ -110,8 +110,9 @@ renderAmountDue fontType title line = do
 
 renderRow ::PDF.AnyFont -> Double -> Int -> Timesheet.Timesheet -> PDF.Draw ()
 renderRow fontType rate i timesheetItem = do
+  setColor PDF.black
   let date = Timesheet.date timesheetItem
-  let y = (480.00 - (fromIntegral i :: Double) * 60.00)
+  let y = (480.00 - (fromIntegral i :: Double) * 65.00)
   let client = Timesheet.client timesheetItem
   let project = Timesheet.project timesheetItem
   let description = "(" ++ client ++ " - " ++ project ++ ") - " ++ date
@@ -124,7 +125,7 @@ renderRow fontType rate i timesheetItem = do
   drawLine (PDF.PDFFont fontType 8) (T.pack (show hours)) 460 y
   drawLine (PDF.PDFFont fontType 8) (T.pack $ "$" ++ (format (rate * hours))) 520 y
   setColor $ PDF.Rgb 0.9 0.9 0.9
-  PDF.stroke $ PDF.Line 30 (y - 50) 580 (y - 50)
+  PDF.stroke $ PDF.Line 30 (y - 45) 580 (y - 45)
 
 main :: IO()
 main = do
@@ -144,8 +145,8 @@ main = do
           renderMyInfo person timesRoman
           renderClientInfo client timesRoman
           renderTitledLine timesRoman "Date of Issue" (T.pack $ issue_date userArgs) 180 600
-          renderTitledLine timesRoman "Due Date" (T.pack $ issue_date userArgs) 180 560
-          renderTitledLine timesRoman "Invoice Number" (T.pack $ issue_date userArgs) 280 600
+          renderTitledLine timesRoman "Due Date" (T.pack $ due_date userArgs) 180 560
+          renderTitledLine timesRoman "Invoice Number" (T.pack $ invoice_number userArgs) 280 600
           setColor kingFisherDaisy
           PDF.stroke $ PDF.Line 30 520 580 520
           drawLine (PDF.PDFFont timesRoman 9) (T.pack "Description") 30 500
@@ -163,7 +164,7 @@ main = do
               V.imapM (renderRow timesRoman (rate userArgs)) v
 
               let leftX = 420
-              let y = fromIntegral (440 - (V.length v) * 50) :: Double
+              let y = fromIntegral (440 - (V.length v) * 65) :: Double
               setColor PDF.black
               drawLine (PDF.PDFFont timesRoman 10) (T.pack "Subtotal") leftX y
               drawLine (PDF.PDFFont timesRoman 10) amountDue 530 y
