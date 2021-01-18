@@ -25,7 +25,7 @@ executable haskell-pdf
   -- other-extensions:
   build-depends:       
       base >=4.13 && <4.14,
-      HPDF >= 1.5.0 && < 1.6,
+      HPDF == 1.5.0,
       text >= 1.2.4 && < 1.3,
       aeson >= 1.5.3 && < 1.6,
       bytestring >= 0.10.10 && < 0.11,
