@@ -137,75 +137,79 @@ renderRow fontType rate yInit i timesheetItem = do
 main :: IO()
 main = do
   userArgs <- cmdArgs outvoice
-  contents <- LBS.readFile "data/me.json"
+  let selfConfigFile = "data/me.json"
+      clientConfigFile = "data/" ++ (client_name userArgs) ++ "/info.json"
+      height = 892
+      rect = PDFRect 0 0 612 height
+  contents <- LBS.readFile selfConfigFile
   csvData <- LBS.readFile (timesheet_file userArgs)
-  clientContents <- LBS.readFile $ "data/" ++ (client_name userArgs) ++ "/info.json"
-  let (Just person) = Aeson.decode contents :: Maybe Person
-  let (Just client) = Aeson.decode clientContents :: Maybe Person
-  let height = 892
-  let rect = PDFRect 0 0 612 height
-  -- runPdf "demo.pdf" (standardDocInfo { author=toPDFString "alpheccar", compressed = False}) rect $ do
+  clientContents <- LBS.readFile clientConfigFile
   Just timesRoman <- mkStdFont Times_Roman 
-  runPdf "demo.pdf" (standardDocInfo { author = "alex", compressed = False}) rect $ do
-    page1 <- addPage Nothing
-    newSection  "Text encoding" Nothing Nothing $ do
-      drawWithPage page1 $ do
-          renderMyInfo person timesRoman 400 (height-60)
-          renderClientInfo client timesRoman 30 (height-200)
-          renderTitledLine timesRoman "Date of Issue" (T.pack $ issue_date userArgs) 180 (height-200)
-          renderTitledLine timesRoman "Due Date" (T.pack $ due_date userArgs) 180 (height-240)
-          renderTitledLine timesRoman "Invoice Number" (T.pack $ invoice_number userArgs) 280 (height-200)
-          setColor kingFisherDaisy
-          stroke $ Line 30 (height-280) 580 (height-280)
-          drawLine (PDFFont timesRoman 9) (T.pack "Description") 30 (height-300)
-          drawLine (PDFFont timesRoman 9) (T.pack "Rate") 400 (height-300)
-          drawLine (PDFFont timesRoman 9) (T.pack "Qty") 460 (height-300)
-          drawLine (PDFFont timesRoman 9) (T.pack "Line Total") 520 (height-300)
-          case Csv.decodeByName csvData of
-            Left err -> return () -- System.IO.putStrLn err
-            Right (_, v) -> do
-              let total = V.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 v
-              let amountDue = (T.pack $ "$" ++ format (total * (rate userArgs)))
-              let zeroAmount = T.pack $ format 0.00
-              renderAmountDue timesRoman "Amount Due" amountDue 480 (height-200)
-              let rowYInit = height - 320
-              V.imapM (renderRow timesRoman (rate userArgs) rowYInit) v
-
-              let leftX = 420
-              let y = rowYInit - ((fromIntegral (V.length v + 1)) :: Double) * 65.00
-              setColor black
-              drawLine (PDFFont timesRoman 10) (T.pack "Subtotal") leftX y
-              drawLine (PDFFont timesRoman 10) amountDue 530 y
-              drawLine (PDFFont timesRoman 10) (T.pack "Tax") leftX (y - 16)
-              drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 16)
-
-              setColor $ Rgb 0.9 0.9 0.9
-              stroke $ Line 340 (y - 28) 580 (y - 28)
-
-              setColor black
-              drawLine (PDFFont timesRoman 10) (T.pack "Total") leftX (y - 44)
-              drawLine (PDFFont timesRoman 10) amountDue 530 (y - 44)
-              drawLine (PDFFont timesRoman 10) (T.pack "Amount Paid") leftX (y - 60)
-              drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 60)
-
-              setColor $ Rgb 0.9 0.9 0.9
-              stroke $ Line 340 (y - 74) 580 (y - 74)
-              stroke $ Line 340 (y - 76) 580 (y - 76)
-
+  case (fmap Aeson.decode [contents, clientContents] :: [Maybe Person]) of 
+    [Nothing, _] -> putStrLn $ "Error parsing " ++ selfConfigFile
+    [_, Nothing] -> putStrLn $ "Error parsing " ++ clientConfigFile
+    [Just person, Just client] -> do
+      -- runPdf "demo.pdf" (standardDocInfo { author=toPDFString "alpheccar", compressed = False}) rect $ do
+      runPdf "demo.pdf" (standardDocInfo { author = "alex", compressed = False}) rect $ do
+        page1 <- addPage Nothing
+        newSection  "Text encoding" Nothing Nothing $ do
+          drawWithPage page1 $ do
+              renderMyInfo person timesRoman 400 (height-60)
+              renderClientInfo client timesRoman 30 (height-200)
+              renderTitledLine timesRoman "Date of Issue" (T.pack $ issue_date userArgs) 180 (height-200)
+              renderTitledLine timesRoman "Due Date" (T.pack $ due_date userArgs) 180 (height-240)
+              renderTitledLine timesRoman "Invoice Number" (T.pack $ invoice_number userArgs) 280 (height-200)
               setColor kingFisherDaisy
-              drawLine (PDFFont timesRoman 12) (T.pack "Amount Due") leftX (y - 94)
-              setColor black
-              drawLine (PDFFont timesRoman 10) amountDue 530 (y - 94)
-
+              stroke $ Line 30 (height-280) 580 (height-280)
+              drawLine (PDFFont timesRoman 9) (T.pack "Description") 30 (height-300)
+              drawLine (PDFFont timesRoman 9) (T.pack "Rate") 400 (height-300)
+              drawLine (PDFFont timesRoman 9) (T.pack "Qty") 460 (height-300)
+              drawLine (PDFFont timesRoman 9) (T.pack "Line Total") 520 (height-300)
+              case Csv.decodeByName csvData of
+                Left err -> return () -- System.IO.putStrLn err
+                Right (_, v) -> do
+                  let total = V.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 v
+                  let amountDue = (T.pack $ "$" ++ format (total * (rate userArgs)))
+                  let zeroAmount = T.pack $ format 0.00
+                  renderAmountDue timesRoman "Amount Due" amountDue 480 (height-200)
+                  let rowYInit = height - 320
+                  V.imapM (renderRow timesRoman (rate userArgs) rowYInit) v
+    
+                  let leftX = 420
+                  let y = rowYInit - ((fromIntegral (V.length v + 1)) :: Double) * 65.00
+                  setColor black
+                  drawLine (PDFFont timesRoman 10) (T.pack "Subtotal") leftX y
+                  drawLine (PDFFont timesRoman 10) amountDue 530 y
+                  drawLine (PDFFont timesRoman 10) (T.pack "Tax") leftX (y - 16)
+                  drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 16)
+    
+                  setColor $ Rgb 0.9 0.9 0.9
+                  stroke $ Line 340 (y - 28) 580 (y - 28)
+    
+                  setColor black
+                  drawLine (PDFFont timesRoman 10) (T.pack "Total") leftX (y - 44)
+                  drawLine (PDFFont timesRoman 10) amountDue 530 (y - 44)
+                  drawLine (PDFFont timesRoman 10) (T.pack "Amount Paid") leftX (y - 60)
+                  drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 60)
+    
+                  setColor $ Rgb 0.9 0.9 0.9
+                  stroke $ Line 340 (y - 74) 580 (y - 74)
+                  stroke $ Line 340 (y - 76) 580 (y - 76)
+    
+                  setColor kingFisherDaisy
+                  drawLine (PDFFont timesRoman 12) (T.pack "Amount Due") leftX (y - 94)
+                  setColor black
+                  drawLine (PDFFont timesRoman 10) amountDue 530 (y - 94)
+    
+                  return ()
               return ()
-          return ()
-        --   let style = Font (PDFFont timesRoman 8) red red
-        --       rect = Rectangle (310 :+ 780) (510 :+ 790) 
-        --       in displayFormattedText rect NormalParagraph style $ do 
-        --         paragraph $ do
-        --           txt $ "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor "
-        --           txt $ "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud "
-        --           txt $ "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute "
-        --           txt $ "irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla "
-        --           txt $ "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia "
-        --           txt $ "deserunt mollit anim id est laborum."
+            --   let style = Font (PDFFont timesRoman 8) red red
+            --       rect = Rectangle (310 :+ 780) (510 :+ 790) 
+            --       in displayFormattedText rect NormalParagraph style $ do 
+            --         paragraph $ do
+            --           txt $ "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor "
+            --           txt $ "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud "
+            --           txt $ "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute "
+            --           txt $ "irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla "
+            --           txt $ "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia "
+            --           txt $ "deserunt mollit anim id est laborum."
