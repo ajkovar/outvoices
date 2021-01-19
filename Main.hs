@@ -29,9 +29,10 @@ format x = h++t
     sp = break (== '.') $ show x
     h = reverse (List.intercalate "," $ Split.splitEvery 3 $ reverse $ fst sp) 
     decimal = snd sp
-    t = case length $ decimal of 3 -> decimal
-                                 2 -> decimal ++ "0"
-                                 _ -> take 3 decimal
+    t = case length decimal of 
+      3 -> decimal
+      2 -> decimal ++ "0"
+      _ -> take 3 decimal
 
 kingFisherDaisy :: Color
 kingFisherDaisy = Rgb 0.32 0.11 0.52
@@ -154,55 +155,55 @@ main = do
         page1 <- addPage Nothing
         newSection  "Text encoding" Nothing Nothing $ do
           drawWithPage page1 $ do
-              renderMyInfo person timesRoman 400 (height-60)
-              renderClientInfo client timesRoman 30 (height-200)
-              renderTitledLine timesRoman "Date of Issue" (T.pack $ issue_date userArgs) 180 (height-200)
-              renderTitledLine timesRoman "Due Date" (T.pack $ due_date userArgs) 180 (height-240)
-              renderTitledLine timesRoman "Invoice Number" (T.pack $ invoice_number userArgs) 280 (height-200)
-              setColor kingFisherDaisy
-              stroke $ Line 30 (height-280) 580 (height-280)
-              drawLine (PDFFont timesRoman 9) (T.pack "Description") 30 (height-300)
-              drawLine (PDFFont timesRoman 9) (T.pack "Rate") 400 (height-300)
-              drawLine (PDFFont timesRoman 9) (T.pack "Qty") 460 (height-300)
-              drawLine (PDFFont timesRoman 9) (T.pack "Line Total") 520 (height-300)
-              case Csv.decodeByName csvData of
-                Left err -> return () -- System.IO.putStrLn err
-                Right (_, v) -> do
-                  let total = V.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 v
-                  let amountDue = (T.pack $ "$" ++ format (total * (rate userArgs)))
-                  let zeroAmount = T.pack $ format 0.00
-                  renderAmountDue timesRoman "Amount Due" amountDue 480 (height-200)
-                  let rowYInit = height - 320
-                  V.imapM (renderRow timesRoman (rate userArgs) rowYInit) v
+            renderMyInfo person timesRoman 400 (height-60)
+            renderClientInfo client timesRoman 30 (height-200)
+            renderTitledLine timesRoman "Date of Issue" (T.pack $ issue_date userArgs) 180 (height-200)
+            renderTitledLine timesRoman "Due Date" (T.pack $ due_date userArgs) 180 (height-240)
+            renderTitledLine timesRoman "Invoice Number" (T.pack $ invoice_number userArgs) 280 (height-200)
+            setColor kingFisherDaisy
+            stroke $ Line 30 (height-280) 580 (height-280)
+            drawLine (PDFFont timesRoman 9) (T.pack "Description") 30 (height-300)
+            drawLine (PDFFont timesRoman 9) (T.pack "Rate") 400 (height-300)
+            drawLine (PDFFont timesRoman 9) (T.pack "Qty") 460 (height-300)
+            drawLine (PDFFont timesRoman 9) (T.pack "Line Total") 520 (height-300)
+            case Csv.decodeByName csvData of
+              Left err -> return () -- System.IO.putStrLn err
+              Right (_, v) -> do
+                let total = V.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 v
+                let amountDue = (T.pack $ "$" ++ format (total * (rate userArgs)))
+                let zeroAmount = T.pack $ format 0.00
+                renderAmountDue timesRoman "Amount Due" amountDue 480 (height-200)
+                let rowYInit = height - 320
+                V.imapM (renderRow timesRoman (rate userArgs) rowYInit) v
     
-                  let leftX = 420
-                  let y = rowYInit - ((fromIntegral (V.length v + 1)) :: Double) * 65.00
-                  setColor black
-                  drawLine (PDFFont timesRoman 10) (T.pack "Subtotal") leftX y
-                  drawLine (PDFFont timesRoman 10) amountDue 530 y
-                  drawLine (PDFFont timesRoman 10) (T.pack "Tax") leftX (y - 16)
-                  drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 16)
+                let leftX = 420
+                let y = rowYInit - ((fromIntegral (V.length v + 1)) :: Double) * 65.00
+                setColor black
+                drawLine (PDFFont timesRoman 10) (T.pack "Subtotal") leftX y
+                drawLine (PDFFont timesRoman 10) amountDue 530 y
+                drawLine (PDFFont timesRoman 10) (T.pack "Tax") leftX (y - 16)
+                drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 16)
     
-                  setColor $ Rgb 0.9 0.9 0.9
-                  stroke $ Line 340 (y - 28) 580 (y - 28)
+                setColor $ Rgb 0.9 0.9 0.9
+                stroke $ Line 340 (y - 28) 580 (y - 28)
     
-                  setColor black
-                  drawLine (PDFFont timesRoman 10) (T.pack "Total") leftX (y - 44)
-                  drawLine (PDFFont timesRoman 10) amountDue 530 (y - 44)
-                  drawLine (PDFFont timesRoman 10) (T.pack "Amount Paid") leftX (y - 60)
-                  drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 60)
+                setColor black
+                drawLine (PDFFont timesRoman 10) (T.pack "Total") leftX (y - 44)
+                drawLine (PDFFont timesRoman 10) amountDue 530 (y - 44)
+                drawLine (PDFFont timesRoman 10) (T.pack "Amount Paid") leftX (y - 60)
+                drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 60)
     
-                  setColor $ Rgb 0.9 0.9 0.9
-                  stroke $ Line 340 (y - 74) 580 (y - 74)
-                  stroke $ Line 340 (y - 76) 580 (y - 76)
+                setColor $ Rgb 0.9 0.9 0.9
+                stroke $ Line 340 (y - 74) 580 (y - 74)
+                stroke $ Line 340 (y - 76) 580 (y - 76)
     
-                  setColor kingFisherDaisy
-                  drawLine (PDFFont timesRoman 12) (T.pack "Amount Due") leftX (y - 94)
-                  setColor black
-                  drawLine (PDFFont timesRoman 10) amountDue 530 (y - 94)
+                setColor kingFisherDaisy
+                drawLine (PDFFont timesRoman 12) (T.pack "Amount Due") leftX (y - 94)
+                setColor black
+                drawLine (PDFFont timesRoman 10) amountDue 530 (y - 94)
     
-                  return ()
-              return ()
+                return ()
+            return ()
             --   let style = Font (PDFFont timesRoman 8) red red
             --       rect = Rectangle (310 :+ 780) (510 :+ 790) 
             --       in displayFormattedText rect NormalParagraph style $ do 
