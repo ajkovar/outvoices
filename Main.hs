@@ -9,17 +9,18 @@ import Graphics.PDF (
   compressed, stroke, Line(Line), runPdf, addPage, newSection, drawWithPage, TextMode(FillText), 
   drawText, mkStdFont, PDFRect(PDFRect), FontName(Times_Roman), standardDocInfo
   )
-import Paths_HPDF
 import Data.Text (Text, pack)
-import Graphics.PDF.Typesetting
-import Person
+import qualified Person
+import Person (Person(Person))
 import Prelude hiding (readFile)
 import Data.ByteString.Lazy (readFile)
 import qualified Data.Aeson as Aeson
 import System.Console.CmdArgs (def, help, (&=), Data, Typeable, summary, cmdArgs)
 import Data.Csv (decodeByName)
-import qualified Data.Vector as V
+import qualified Data.Vector
+import Data.Vector (Vector)
 import qualified Timesheet
+import Timesheet (Timesheet(Timesheet))
 import qualified Data.List.Split as Split
 import qualified Data.List as List
 import Control.Monad.Trans.Except (runExceptT, ExceptT(ExceptT))
@@ -117,7 +118,7 @@ renderAmountDue fontType title line x y = do
   setColor black
   drawLine (PDFFont fontType 19) line x (y - 17)
 
-renderRow :: AnyFont -> Double -> Double -> Int -> Timesheet.Timesheet -> Draw ()
+renderRow :: AnyFont -> Double -> Double -> Int -> Timesheet -> Draw ()
 renderRow fontType rate yInit i timesheetItem = do
   setColor black
   let date = Timesheet.date timesheetItem
@@ -136,7 +137,7 @@ renderRow fontType rate yInit i timesheetItem = do
   setColor $ Rgb 0.9 0.9 0.9
   stroke $ Line 30 (y - 45) 580 (y - 45)
 
-type AppConfig = (Person, Person, V.Vector Timesheet.Timesheet, AnyFont)
+type AppConfig = (Person, Person, Vector Timesheet, AnyFont)
 
 loadConfig' :: String -> ExceptT String IO AppConfig
 loadConfig' client = do
@@ -159,7 +160,7 @@ main = do
   loadedData <- loadConfig (client_name userArgs)
   case loadedData of 
     Left error -> putStrLn error
-    Right (person, client, v, timesRoman) -> do
+    Right (person, client, timesheetEntries, timesRoman) -> do
       -- runPdf "demo.pdf" (standardDocInfo { author=toPDFString "alpheccar", compressed = False}) rect $ do
       runPdf "demo.pdf" (standardDocInfo { author = "alex", compressed = False}) rect $ do
         page1 <- addPage Nothing
@@ -176,15 +177,15 @@ main = do
             drawLine (PDFFont timesRoman 9) (pack "Rate") 400 (height-300)
             drawLine (PDFFont timesRoman 9) (pack "Qty") 460 (height-300)
             drawLine (PDFFont timesRoman 9) (pack "Line Total") 520 (height-300)
-            let total = V.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 v
+            let total = Data.Vector.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 timesheetEntries
             let amountDue = (pack $ "$" ++ format (total * (rate userArgs)))
             let zeroAmount = pack $ format 0.00
             renderAmountDue timesRoman "Amount Due" amountDue 480 (height-200)
             let rowYInit = height - 320
-            V.imapM (renderRow timesRoman (rate userArgs) rowYInit) v
+            Data.Vector.imapM (renderRow timesRoman (rate userArgs) rowYInit) timesheetEntries
     
             let leftX = 420
-            let y = rowYInit - ((fromIntegral (V.length v + 1)) :: Double) * 65.00
+            let y = rowYInit - ((fromIntegral (Data.Vector.length timesheetEntries + 1)) :: Double) * 65.00
             setColor black
             drawLine (PDFFont timesRoman 10) (pack "Subtotal") leftX y
             drawLine (PDFFont timesRoman 10) amountDue 530 y
