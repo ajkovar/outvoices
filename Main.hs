@@ -20,9 +20,9 @@ import System.Console.CmdArgs (def, help, (&=), Data, Typeable, summary, cmdArgs
 import qualified Data.Csv as Csv
 import qualified Data.Vector as V
 import qualified Timesheet
-
 import qualified Data.List.Split as Split
 import qualified Data.List as List
+import Control.Monad.Trans.Except (runExceptT, ExceptT(ExceptT))
 
 format x = h++t
   where
@@ -116,7 +116,7 @@ renderAmountDue fontType title line x y = do
   setColor black
   drawLine (PDFFont fontType 19) line x (y - 17)
 
-renderRow ::AnyFont -> Double -> Double -> Int -> Timesheet.Timesheet -> Draw ()
+renderRow :: AnyFont -> Double -> Double -> Int -> Timesheet.Timesheet -> Draw ()
 renderRow fontType rate yInit i timesheetItem = do
   setColor black
   let date = Timesheet.date timesheetItem
@@ -135,21 +135,28 @@ renderRow fontType rate yInit i timesheetItem = do
   setColor $ Rgb 0.9 0.9 0.9
   stroke $ Line 30 (y - 45) 580 (y - 45)
 
+loadData' :: String -> ExceptT String IO (Person, Person, V.Vector Timesheet.Timesheet)
+loadData' client = do
+  let selfConfigFile = "data/me.json"
+      clientConfigFile = "data/" ++ client ++ "/info.json"
+  myConfig <- ExceptT $ Aeson.eitherDecode <$> LBS.readFile selfConfigFile
+  clientConfig <- ExceptT $ Aeson.eitherDecode <$> LBS.readFile clientConfigFile
+  csvData <- ExceptT $ Csv.decodeByName <$> LBS.readFile ""
+  return (myConfig, clientConfig, snd csvData)
+
+loadData :: String -> IO (Either String (Person, Person, V.Vector Timesheet.Timesheet))
+loadData client = runExceptT $ loadData' client
+
 main :: IO()
 main = do
-  userArgs <- cmdArgs outvoice
-  let selfConfigFile = "data/me.json"
-      clientConfigFile = "data/" ++ (client_name userArgs) ++ "/info.json"
-      height = 892
+  let height = 892
       rect = PDFRect 0 0 612 height
-  contents <- LBS.readFile selfConfigFile
-  csvData <- LBS.readFile (timesheet_file userArgs)
-  clientContents <- LBS.readFile clientConfigFile
+  userArgs <- cmdArgs outvoice
+  loadedData <- loadData (client_name userArgs)
   Just timesRoman <- mkStdFont Times_Roman 
-  case (fmap Aeson.decode [contents, clientContents] :: [Maybe Person]) of 
-    [Nothing, _] -> putStrLn $ "Error parsing " ++ selfConfigFile
-    [_, Nothing] -> putStrLn $ "Error parsing " ++ clientConfigFile
-    [Just person, Just client] -> do
+  case loadedData of 
+    Left error -> putStrLn error
+    Right (person, client, v) -> do
       -- runPdf "demo.pdf" (standardDocInfo { author=toPDFString "alpheccar", compressed = False}) rect $ do
       runPdf "demo.pdf" (standardDocInfo { author = "alex", compressed = False}) rect $ do
         page1 <- addPage Nothing
@@ -166,43 +173,39 @@ main = do
             drawLine (PDFFont timesRoman 9) (T.pack "Rate") 400 (height-300)
             drawLine (PDFFont timesRoman 9) (T.pack "Qty") 460 (height-300)
             drawLine (PDFFont timesRoman 9) (T.pack "Line Total") 520 (height-300)
-            case Csv.decodeByName csvData of
-              Left err -> return () -- System.IO.putStrLn err
-              Right (_, v) -> do
-                let total = V.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 v
-                let amountDue = (T.pack $ "$" ++ format (total * (rate userArgs)))
-                let zeroAmount = T.pack $ format 0.00
-                renderAmountDue timesRoman "Amount Due" amountDue 480 (height-200)
-                let rowYInit = height - 320
-                V.imapM (renderRow timesRoman (rate userArgs) rowYInit) v
+            let total = V.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 v
+            let amountDue = (T.pack $ "$" ++ format (total * (rate userArgs)))
+            let zeroAmount = T.pack $ format 0.00
+            renderAmountDue timesRoman "Amount Due" amountDue 480 (height-200)
+            let rowYInit = height - 320
+            V.imapM (renderRow timesRoman (rate userArgs) rowYInit) v
     
-                let leftX = 420
-                let y = rowYInit - ((fromIntegral (V.length v + 1)) :: Double) * 65.00
-                setColor black
-                drawLine (PDFFont timesRoman 10) (T.pack "Subtotal") leftX y
-                drawLine (PDFFont timesRoman 10) amountDue 530 y
-                drawLine (PDFFont timesRoman 10) (T.pack "Tax") leftX (y - 16)
-                drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 16)
+            let leftX = 420
+            let y = rowYInit - ((fromIntegral (V.length v + 1)) :: Double) * 65.00
+            setColor black
+            drawLine (PDFFont timesRoman 10) (T.pack "Subtotal") leftX y
+            drawLine (PDFFont timesRoman 10) amountDue 530 y
+            drawLine (PDFFont timesRoman 10) (T.pack "Tax") leftX (y - 16)
+            drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 16)
     
-                setColor $ Rgb 0.9 0.9 0.9
-                stroke $ Line 340 (y - 28) 580 (y - 28)
+            setColor $ Rgb 0.9 0.9 0.9
+            stroke $ Line 340 (y - 28) 580 (y - 28)
     
-                setColor black
-                drawLine (PDFFont timesRoman 10) (T.pack "Total") leftX (y - 44)
-                drawLine (PDFFont timesRoman 10) amountDue 530 (y - 44)
-                drawLine (PDFFont timesRoman 10) (T.pack "Amount Paid") leftX (y - 60)
-                drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 60)
+            setColor black
+            drawLine (PDFFont timesRoman 10) (T.pack "Total") leftX (y - 44)
+            drawLine (PDFFont timesRoman 10) amountDue 530 (y - 44)
+            drawLine (PDFFont timesRoman 10) (T.pack "Amount Paid") leftX (y - 60)
+            drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 60)
     
-                setColor $ Rgb 0.9 0.9 0.9
-                stroke $ Line 340 (y - 74) 580 (y - 74)
-                stroke $ Line 340 (y - 76) 580 (y - 76)
+            setColor $ Rgb 0.9 0.9 0.9
+            stroke $ Line 340 (y - 74) 580 (y - 74)
+            stroke $ Line 340 (y - 76) 580 (y - 76)
     
-                setColor kingFisherDaisy
-                drawLine (PDFFont timesRoman 12) (T.pack "Amount Due") leftX (y - 94)
-                setColor black
-                drawLine (PDFFont timesRoman 10) amountDue 530 (y - 94)
+            setColor kingFisherDaisy
+            drawLine (PDFFont timesRoman 12) (T.pack "Amount Due") leftX (y - 94)
+            setColor black
+            drawLine (PDFFont timesRoman 10) amountDue 530 (y - 94)
     
-                return ()
             return ()
             --   let style = Font (PDFFont timesRoman 8) red red
             --       rect = Rectangle (310 :+ 780) (510 :+ 790) 
