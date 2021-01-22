@@ -21,15 +21,15 @@ import qualified Data.Vector
 import Data.Vector (Vector)
 import qualified Timesheet
 import Timesheet (Timesheet(Timesheet))
-import qualified Data.List.Split as Split
-import qualified Data.List as List
+import Data.List.Split (splitEvery)
+import Data.List (intercalate)
 import Control.Monad.Trans.Except (runExceptT, ExceptT(ExceptT))
 import Control.Error.Util (note)
 
 format x = h++t
   where
     sp = break (== '.') $ show x
-    h = reverse (List.intercalate "," $ Split.splitEvery 3 $ reverse $ fst sp) 
+    h = reverse (intercalate "," $ splitEvery 3 $ reverse $ fst sp) 
     decimal = snd sp
     t = case length decimal of 
       3 -> decimal
