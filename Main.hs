@@ -23,6 +23,7 @@ import qualified Timesheet
 import qualified Data.List.Split as Split
 import qualified Data.List as List
 import Control.Monad.Trans.Except (runExceptT, ExceptT(ExceptT))
+import Control.Error.Util (note)
 
 format x = h++t
   where
@@ -135,30 +136,30 @@ renderRow fontType rate yInit i timesheetItem = do
   setColor $ Rgb 0.9 0.9 0.9
   stroke $ Line 30 (y - 45) 580 (y - 45)
 
-type AppConfig = (Person, Person, V.Vector Timesheet.Timesheet)
+type AppConfig = (Person, Person, V.Vector Timesheet.Timesheet, AnyFont)
 
-loadData' :: String -> ExceptT String IO AppConfig
-loadData' client = do
+loadConfig' :: String -> ExceptT String IO AppConfig
+loadConfig' client = do
   let selfConfigFile = "data/me.json"
       clientConfigFile = "data/" ++ client ++ "/info.json"
   myConfig <- ExceptT $ Aeson.eitherDecode <$> readFile selfConfigFile
   clientConfig <- ExceptT $ Aeson.eitherDecode <$> readFile clientConfigFile
   csvData <- ExceptT $ decodeByName <$> readFile ""
-  return (myConfig, clientConfig, snd csvData)
+  timesRoman <- ExceptT $ note "Error loading font" <$> mkStdFont Times_Roman 
+  return (myConfig, clientConfig, snd csvData, timesRoman)
 
-loadData :: String -> IO (Either String AppConfig)
-loadData client = runExceptT $ loadData' client
+loadConfig :: String -> IO (Either String AppConfig)
+loadConfig client = runExceptT $ loadConfig' client
 
 main :: IO()
 main = do
   let height = 892
       rect = PDFRect 0 0 612 height
   userArgs <- cmdArgs outvoice
-  loadedData <- loadData (client_name userArgs)
-  Just timesRoman <- mkStdFont Times_Roman 
+  loadedData <- loadConfig (client_name userArgs)
   case loadedData of 
     Left error -> putStrLn error
-    Right (person, client, v) -> do
+    Right (person, client, v, timesRoman) -> do
       -- runPdf "demo.pdf" (standardDocInfo { author=toPDFString "alpheccar", compressed = False}) rect $ do
       runPdf "demo.pdf" (standardDocInfo { author = "alex", compressed = False}) rect $ do
         page1 <- addPage Nothing
