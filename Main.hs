@@ -1,5 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, MultiParamTypeClasses,OverloadedStrings,DeriveDataTypeable #-}
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE ScopedTypeVariables, MultiParamTypeClasses, OverloadedStrings, DeriveDataTypeable, CPP  #-}
 
 module Main where
 
