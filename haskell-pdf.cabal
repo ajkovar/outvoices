@@ -22,6 +22,7 @@ executable haskell-pdf
   other-modules:
     Person
     Timesheet
+    Outvoice
   -- other-extensions:
   build-depends:       
       base >=4.13 && <4.14,

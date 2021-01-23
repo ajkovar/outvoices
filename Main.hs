@@ -15,12 +15,13 @@ import Person (Person(Person))
 import Prelude hiding (readFile)
 import Data.ByteString.Lazy (readFile)
 import qualified Data.Aeson as Aeson
-import System.Console.CmdArgs (def, help, (&=), Data, Typeable, summary, cmdArgs)
+import System.Console.CmdArgs (cmdArgs)
 import Data.Csv (decodeByName)
 import qualified Data.Vector
 import Data.Vector (Vector)
 import qualified Timesheet
 import Timesheet (Timesheet(Timesheet))
+import OutVoice (outvoice, rate, invoice_number, due_date, client_name, issue_date)
 import Data.List.Split (splitEvery)
 import Data.List (intercalate)
 import Control.Monad.Trans.Except (runExceptT, ExceptT(ExceptT))
@@ -38,24 +39,6 @@ format x = h++t
 
 kingFisherDaisy :: Color
 kingFisherDaisy = Rgb 0.32 0.11 0.52
-
-data OutVoice = OutVoice {
-  client_name :: String, 
-  issue_date :: String, 
-  due_date :: String,
-  invoice_number :: String,
-  timesheet_file :: String,
-  rate :: Double
-  } deriving (Show, Data, Typeable)
-
-outvoice = OutVoice{
-   client_name = def &= help "Client to generate for (should match their data directory name)",
-   issue_date = def &= help "Issue date",
-   due_date = def &= help "Due date",
-   invoice_number = def &= help "Invoice Number",
-   timesheet_file = def &= help "Location of CSV timesheet file",
-   rate = def &= help "Hourly billing Rate"
-} &= summary "Generate an invoice based on a csv input file"
 
 setColor :: Color -> Draw ()
 setColor color = do
@@ -84,7 +67,6 @@ drawLines theFont@(PDFFont f s) lines x y = do
     leading $ (getHeight f s) + 3
     renderMode FillText
     mapM displayLine lines 
-    --  stroke $ Rectangle (10 :+ (200.0 - (getDescent f s))) ((10.0 + textWidth theFont t) :+ (200.0 - getDescent f s + getHeight f s))
 
 renderMyInfo :: Person -> AnyFont -> Double -> Double -> Draw [()]
 renderMyInfo person timesRoman x y = do
@@ -122,11 +104,11 @@ renderRow :: AnyFont -> Double -> Double -> Int -> Timesheet -> Draw ()
 renderRow fontType rate yInit i timesheetItem = do
   setColor black
   let date = Timesheet.date timesheetItem
-  let y = (yInit - (fromIntegral i :: Double) * 65.00)
-  let client = Timesheet.client timesheetItem
-  let project = Timesheet.project timesheetItem
-  let description = "(" ++ client ++ " - " ++ project ++ ") - " ++ date
-  let hours = (Timesheet.hours timesheetItem)
+      y = (yInit - (fromIntegral i :: Double) * 65.00)
+      client = Timesheet.client timesheetItem
+      project = Timesheet.project timesheetItem
+      description = "(" ++ client ++ " - " ++ project ++ ") - " ++ date
+      hours = Timesheet.hours timesheetItem
   drawLine (PDFFont fontType 10) (pack "Time") 30 y
   drawLine (PDFFont fontType 9) (pack description) 30 (y - 12)
   drawLine (PDFFont fontType 9) (pack ((Timesheet.task timesheetItem) ++ " -")) 30 (y - 22)
@@ -152,7 +134,7 @@ loadConfig' client = do
 loadConfig :: String -> IO (Either String AppConfig)
 loadConfig client = runExceptT $ loadConfig' client
 
-main :: IO()
+main :: IO ()
 main = do
   let height = 892
       rect = PDFRect 0 0 612 height
@@ -161,7 +143,6 @@ main = do
   case loadedData of 
     Left error -> putStrLn error
     Right (person, client, timesheetEntries, timesRoman) -> do
-      -- runPdf "demo.pdf" (standardDocInfo { author=toPDFString "alpheccar", compressed = False}) rect $ do
       runPdf "demo.pdf" (standardDocInfo { author = "alex", compressed = False}) rect $ do
         page1 <- addPage Nothing
         newSection  "Text encoding" Nothing Nothing $ do
@@ -211,13 +192,3 @@ main = do
             drawLine (PDFFont timesRoman 10) amountDue 530 (y - 94)
     
             return ()
-            --   let style = Font (PDFFont timesRoman 8) red red
-            --       rect = Rectangle (310 :+ 780) (510 :+ 790) 
-            --       in displayFormattedText rect NormalParagraph style $ do 
-            --         paragraph $ do
-            --           txt $ "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor "
-            --           txt $ "incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud "
-            --           txt $ "exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute "
-            --           txt $ "irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla "
-            --           txt $ "pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia "
-            --           txt $ "deserunt mollit anim id est laborum."
