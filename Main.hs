@@ -20,21 +20,10 @@ import qualified Data.Vector
 import Data.Vector (Vector)
 import qualified Timesheet
 import Timesheet (Timesheet(Timesheet))
-import OutVoice (outvoice, rate, invoice_number, due_date, client_name, issue_date)
-import Data.List.Split (splitEvery)
-import Data.List (intercalate)
+import OutVoice (outvoice, rate, invoice_number, due_date, client_name, issue_date, timesheet_file)
 import Control.Monad.Trans.Except (runExceptT, ExceptT(ExceptT))
 import Control.Error.Util (note)
-
-format x = h++t
-  where
-    sp = break (== '.') $ show x
-    h = reverse (intercalate "," $ splitEvery 3 $ reverse $ fst sp) 
-    decimal = snd sp
-    t = case length decimal of 
-      3 -> decimal
-      2 -> decimal ++ "0"
-      _ -> take 3 decimal
+import Utils (formatMoney)
 
 kingFisherDaisy :: Color
 kingFisherDaisy = Rgb 0.32 0.11 0.52
@@ -112,33 +101,33 @@ renderRow fontType rate yInit i timesheetItem = do
   drawLine (PDFFont fontType 9) (pack description) 30 (y - 12)
   drawLine (PDFFont fontType 9) (pack ((Timesheet.task timesheetItem) ++ " -")) 30 (y - 22)
   drawLine (PDFFont fontType 8) (pack (Timesheet.notes timesheetItem)) 30 (y - 34)
-  drawLine (PDFFont fontType 8) (pack $ "$" ++ (format rate)) 400 y
+  drawLine (PDFFont fontType 8) (pack $ "$" ++ (formatMoney rate)) 400 y
   drawLine (PDFFont fontType 8) (pack (show hours)) 460 y
-  drawLine (PDFFont fontType 8) (pack $ "$" ++ (format (rate * hours))) 520 y
+  drawLine (PDFFont fontType 8) (pack $ "$" ++ (formatMoney (rate * hours))) 520 y
   setColor $ Rgb 0.9 0.9 0.9
   stroke $ Line 30 (y - 45) 580 (y - 45)
 
 type AppConfig = (Person, Person, Vector Timesheet, AnyFont)
 
-loadConfig' :: String -> ExceptT String IO AppConfig
-loadConfig' client = do
+loadConfig' :: String -> String -> ExceptT String IO AppConfig
+loadConfig' clientName timesheetFile = do
   let selfConfigFile = "data/me.json"
-      clientConfigFile = "data/" ++ client ++ "/info.json"
+      clientConfigFile = "data/" ++ clientName ++ "/info.json"
   myConfig <- ExceptT $ Aeson.eitherDecode <$> readFile selfConfigFile
   clientConfig <- ExceptT $ Aeson.eitherDecode <$> readFile clientConfigFile
-  csvData <- ExceptT $ decodeByName <$> readFile ""
+  csvData <- ExceptT $ decodeByName <$> readFile timesheetFile
   timesRoman <- ExceptT $ note "Error loading font" <$> mkStdFont Times_Roman 
   return (myConfig, clientConfig, snd csvData, timesRoman)
 
-loadConfig :: String -> IO (Either String AppConfig)
-loadConfig client = runExceptT $ loadConfig' client
+loadConfig :: String -> String -> IO (Either String AppConfig)
+loadConfig client timesheetFile = runExceptT $ loadConfig' client timesheetFile
 
 main :: IO ()
 main = do
   let height = 892
       rect = PDFRect 0 0 612 height
   userArgs <- cmdArgs outvoice
-  loadedData <- loadConfig (client_name userArgs)
+  loadedData <- loadConfig (client_name userArgs) (timesheet_file userArgs)
   case loadedData of 
     Left error -> putStrLn error
     Right (person, client, timesheetEntries, timesRoman) -> do
@@ -158,8 +147,8 @@ main = do
             drawLine (PDFFont timesRoman 9) (pack "Qty") 460 (height-300)
             drawLine (PDFFont timesRoman 9) (pack "Line Total") 520 (height-300)
             let total = Data.Vector.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 timesheetEntries
-            let amountDue = (pack $ "$" ++ format (total * (rate userArgs)))
-            let zeroAmount = pack $ format 0.00
+            let amountDue = (pack $ "$" ++ formatMoney (total * (rate userArgs)))
+            let zeroAmount = pack $ formatMoney 0.00
             renderAmountDue timesRoman "Amount Due" amountDue 480 (height-200)
             let rowYInit = height - 320
             Data.Vector.imapM (renderRow timesRoman (rate userArgs) rowYInit) timesheetEntries
