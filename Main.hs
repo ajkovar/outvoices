@@ -23,7 +23,7 @@ import Timesheet (Timesheet(Timesheet))
 import OutVoice (outvoice, rate, invoice_number, due_date, client_name, issue_date, timesheet_file)
 import Control.Monad.Trans.Except (runExceptT, ExceptT(ExceptT))
 import Control.Error.Util (note)
-import Utils (formatMoney)
+import Utils (formatMoney, paginate)
 
 kingFisherDaisy :: Color
 kingFisherDaisy = Rgb 0.32 0.11 0.52
@@ -107,6 +107,34 @@ renderRow fontType rate yInit i timesheetItem = do
   setColor $ Rgb 0.9 0.9 0.9
   stroke $ Line 30 (y - 45) 580 (y - 45)
 
+renderFooter :: AnyFont -> Text -> Double -> Draw ()
+renderFooter timesRoman amountDue y = do
+  let leftX = 420
+      zeroAmount = pack $ formatMoney 0.00
+  setColor black
+  drawLine (PDFFont timesRoman 10) (pack "Subtotal") leftX y
+  drawLine (PDFFont timesRoman 10) amountDue 530 y
+  drawLine (PDFFont timesRoman 10) (pack "Tax") leftX (y - 16)
+  drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 16)
+  
+  setColor $ Rgb 0.9 0.9 0.9
+  stroke $ Line 340 (y - 28) 580 (y - 28)
+  
+  setColor black
+  drawLine (PDFFont timesRoman 10) (pack "Total") leftX (y - 44)
+  drawLine (PDFFont timesRoman 10) amountDue 530 (y - 44)
+  drawLine (PDFFont timesRoman 10) (pack "Amount Paid") leftX (y - 60)
+  drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 60)
+  
+  setColor $ Rgb 0.9 0.9 0.9
+  stroke $ Line 340 (y - 74) 580 (y - 74)
+  stroke $ Line 340 (y - 76) 580 (y - 76)
+  
+  setColor kingFisherDaisy
+  drawLine (PDFFont timesRoman 12) (pack "Amount Due") leftX (y - 94)
+  setColor black
+  drawLine (PDFFont timesRoman 10) amountDue 530 (y - 94)
+
 type AppConfig = (Person, Person, Vector Timesheet, AnyFont)
 
 loadConfig' :: String -> String -> ExceptT String IO AppConfig
@@ -131,6 +159,10 @@ main = do
   case loadedData of 
     Left error -> putStrLn error
     Right (person, client, timesheetEntries, timesRoman) -> do
+      let paginatedEntries = paginate timesheetEntries
+          firstPage = take 1 paginatedEntries
+          rest = drop 1 paginatedEntries
+          lastPage = last paginatedEntries
       runPdf "demo.pdf" (standardDocInfo { author = "alex", compressed = False}) rect $ do
         page1 <- addPage Nothing
         newSection  "Text encoding" Nothing Nothing $ do
@@ -148,35 +180,9 @@ main = do
             drawLine (PDFFont timesRoman 9) (pack "Line Total") 520 (height-300)
             let total = Data.Vector.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 timesheetEntries
             let amountDue = (pack $ "$" ++ formatMoney (total * (rate userArgs)))
-            let zeroAmount = pack $ formatMoney 0.00
             renderAmountDue timesRoman "Amount Due" amountDue 480 (height-200)
             let rowYInit = height - 320
+                y = (rowYInit - ((fromIntegral (Data.Vector.length timesheetEntries + 1)) :: Double) * 65.00)
             Data.Vector.imapM (renderRow timesRoman (rate userArgs) rowYInit) timesheetEntries
-    
-            let leftX = 420
-            let y = rowYInit - ((fromIntegral (Data.Vector.length timesheetEntries + 1)) :: Double) * 65.00
-            setColor black
-            drawLine (PDFFont timesRoman 10) (pack "Subtotal") leftX y
-            drawLine (PDFFont timesRoman 10) amountDue 530 y
-            drawLine (PDFFont timesRoman 10) (pack "Tax") leftX (y - 16)
-            drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 16)
-    
-            setColor $ Rgb 0.9 0.9 0.9
-            stroke $ Line 340 (y - 28) 580 (y - 28)
-    
-            setColor black
-            drawLine (PDFFont timesRoman 10) (pack "Total") leftX (y - 44)
-            drawLine (PDFFont timesRoman 10) amountDue 530 (y - 44)
-            drawLine (PDFFont timesRoman 10) (pack "Amount Paid") leftX (y - 60)
-            drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 60)
-    
-            setColor $ Rgb 0.9 0.9 0.9
-            stroke $ Line 340 (y - 74) 580 (y - 74)
-            stroke $ Line 340 (y - 76) 580 (y - 76)
-    
-            setColor kingFisherDaisy
-            drawLine (PDFFont timesRoman 12) (pack "Amount Due") leftX (y - 94)
-            setColor black
-            drawLine (PDFFont timesRoman 10) amountDue 530 (y - 94)
-    
+            renderFooter timesRoman amountDue y
             return ()
