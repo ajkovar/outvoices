@@ -6,7 +6,7 @@ import Graphics.PDF (
   Color, Draw, PDFText, AnyFont, black, strokeColor, fillColor, setFont, textStart, renderMode, 
   getHeight, leading, Color(Rgb), black, displayText, startNewLine, author, PDFFont(PDFFont), 
   compressed, stroke, Line(Line), runPdf, addPage, newSection, drawWithPage, TextMode(FillText), 
-  drawText, mkStdFont, PDFRect(PDFRect), FontName(Times_Roman), standardDocInfo
+  drawText, mkStdFont, PDFRect(PDFRect), FontName(Times_Roman), standardDocInfo, PDF
   )
 import Data.Text (Text, pack)
 import qualified Person
@@ -24,6 +24,21 @@ import OutVoice (OutVoice(OutVoice), outvoice, rate, invoice_number, due_date, c
 import Control.Monad.Trans.Except (runExceptT, ExceptT(ExceptT))
 import Control.Error.Util (note)
 import Utils (formatMoney, paginate)
+
+type AppConfig = (Person, Person, Vector Timesheet, AnyFont)
+
+loadConfig' :: String -> String -> ExceptT String IO AppConfig
+loadConfig' clientName timesheetFile = do
+  let selfConfigFile = "data/me.json"
+      clientConfigFile = "data/" ++ clientName ++ "/info.json"
+  myConfig <- ExceptT $ Aeson.eitherDecode <$> readFile selfConfigFile
+  clientConfig <- ExceptT $ Aeson.eitherDecode <$> readFile clientConfigFile
+  csvData <- ExceptT $ decodeByName <$> readFile timesheetFile
+  timesRoman <- ExceptT $ note "Error loading Times Roman font" <$> mkStdFont Times_Roman 
+  return (myConfig, clientConfig, snd csvData, timesRoman)
+
+loadConfig :: String -> String -> IO (Either String AppConfig)
+loadConfig client timesheetFile = runExceptT $ loadConfig' client timesheetFile
 
 kingFisherDaisy :: Color
 kingFisherDaisy = Rgb 0.32 0.11 0.52
@@ -150,20 +165,20 @@ renderHeader timesRoman person client amountDue height userArgs = do
   drawLine (PDFFont timesRoman 9) (pack "Line Total") 520 (height-300)
   renderAmountDue timesRoman "Amount Due" amountDue 480 (height-200)
 
-type AppConfig = (Person, Person, Vector Timesheet, AnyFont)
-
-loadConfig' :: String -> String -> ExceptT String IO AppConfig
-loadConfig' clientName timesheetFile = do
-  let selfConfigFile = "data/me.json"
-      clientConfigFile = "data/" ++ clientName ++ "/info.json"
-  myConfig <- ExceptT $ Aeson.eitherDecode <$> readFile selfConfigFile
-  clientConfig <- ExceptT $ Aeson.eitherDecode <$> readFile clientConfigFile
-  csvData <- ExceptT $ decodeByName <$> readFile timesheetFile
-  timesRoman <- ExceptT $ note "Error loading Times Roman font" <$> mkStdFont Times_Roman 
-  return (myConfig, clientConfig, snd csvData, timesRoman)
-
-loadConfig :: String -> String -> IO (Either String AppConfig)
-loadConfig client timesheetFile = runExceptT $ loadConfig' client timesheetFile
+renderPage :: AnyFont -> Person -> Person -> [Vector Timesheet] -> Text -> OutVoice -> Double -> Vector Timesheet -> PDF ()
+renderPage timesRoman person client allEntries amountDue userArgs height pageEntries = do
+  page1 <- addPage Nothing
+  newSection  "Text encoding" Nothing Nothing $ do
+    drawWithPage page1 $ do
+      let rowYInit = height - 320
+          y = rowYInit - ((fromIntegral (Data.Vector.length pageEntries + 1)) :: Double) * 65.00
+      if pageEntries == last allEntries 
+        then renderHeader timesRoman person client amountDue height userArgs
+        else return ()
+      Data.Vector.imapM (renderRow timesRoman (rate userArgs) rowYInit) pageEntries
+      if pageEntries == last allEntries && Data.Vector.length pageEntries < 10 
+        then renderFooter timesRoman amountDue y
+        else return ()
 
 main :: IO ()
 main = do
@@ -175,20 +190,8 @@ main = do
     Left error -> putStrLn error
     Right (person, client, timesheetEntries, timesRoman) -> do
       let paginatedEntries = paginate timesheetEntries
-          firstPage = head paginatedEntries
-          rest = drop 1 paginatedEntries
-          lastPage = last paginatedEntries
-      runPdf "demo.pdf" (standardDocInfo { author = "alex", compressed = False}) rect $ do
-        page1 <- addPage Nothing
-        newSection  "Text encoding" Nothing Nothing $ do
-          drawWithPage page1 $ do
-            let total = Data.Vector.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 timesheetEntries
-            let amountDue = (pack $ "$" ++ formatMoney (total * (rate userArgs)))
-            let rowYInit = height - 320
-                y = rowYInit - ((fromIntegral (Data.Vector.length timesheetEntries + 1)) :: Double) * 65.00
-
-            renderHeader timesRoman person client amountDue height userArgs
-            Data.Vector.imapM (renderRow timesRoman (rate userArgs) rowYInit) timesheetEntries
-            if firstPage == lastPage && Data.Vector.length lastPage < 5 
-              then renderFooter timesRoman amountDue y
-              else return ()
+          total = Data.Vector.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 timesheetEntries
+          amountDue = (pack $ "$" ++ formatMoney (total * (rate userArgs)))
+      runPdf "demo.pdf" (standardDocInfo { author = "alex", compressed = False}) rect $ 
+        mapM (renderPage timesRoman person client paginatedEntries amountDue userArgs height) paginatedEntries
+      return ()
