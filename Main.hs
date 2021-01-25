@@ -167,19 +167,29 @@ renderHeader timesRoman person client amountDue height userArgs = do
 
 renderPage :: AnyFont -> Person -> Person -> [Vector Timesheet] -> Text -> OutVoice -> Double -> Vector Timesheet -> PDF ()
 renderPage timesRoman person client allEntries amountDue userArgs height pageEntries = do
+  let isFirstPage = pageEntries == head allEntries
+      isLastPage = pageEntries == last allEntries
+      rowYInit = if isFirstPage then height - 320 else height - 60
+      y = rowYInit - ((fromIntegral (Data.Vector.length pageEntries + 1)) :: Double) * 65.00
+      maxRows = if isFirstPage then 6 else 11
+      showFooter =  Data.Vector.length pageEntries < maxRows
   page <- addPage Nothing
   newSection  "Text encoding" Nothing Nothing $ do
     drawWithPage page $ do
-      let isFirstPage = pageEntries == head allEntries
-          rowYInit = if isFirstPage then height - 320 else height - 60
-          y = rowYInit - ((fromIntegral (Data.Vector.length pageEntries + 1)) :: Double) * 65.00
       if isFirstPage
         then renderHeader timesRoman person client amountDue height userArgs
         else return ()
       Data.Vector.imapM (renderRow timesRoman (rate userArgs) rowYInit) pageEntries
-      if pageEntries == last allEntries && Data.Vector.length pageEntries < 10 
+      if showFooter && isLastPage
         then renderFooter timesRoman amountDue y
         else return ()
+  if not showFooter && isLastPage
+    then do
+      page <- addPage Nothing
+      newSection  "Text encoding" Nothing Nothing $ do
+        drawWithPage page $ do
+          renderFooter timesRoman amountDue (height - 60)
+    else return ()
 
 main :: IO ()
 main = do

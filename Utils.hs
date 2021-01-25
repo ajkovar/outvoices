@@ -24,7 +24,7 @@ paginate v
   | V.length v > firstPage = V.take firstPage v : VSplit.chunksOf rest (drop rest v)
   | otherwise = [v] 
   where firstPage = 8
-        rest = 20
+        rest = 12
 
   
 
