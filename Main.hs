@@ -8,7 +8,7 @@ import Graphics.PDF (
   compressed, stroke, Line(Line), runPdf, addPage, newSection, drawWithPage, TextMode(FillText), 
   drawText, mkStdFont, PDFRect(PDFRect), FontName(Times_Roman), standardDocInfo, PDF
   )
-import Data.Text (Text, pack)
+import Data.Text (Text, pack, unpack)
 import qualified Person
 import Person (Person(Person))
 import Prelude hiding (readFile)
@@ -203,6 +203,9 @@ main = do
           total = Data.Vector.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 timesheetEntries
           amountDue = (pack $ "$" ++ formatMoney (total * (rate userArgs)))
           rect = PDFRect 0 0 612 totalHeight
-      runPdf "demo.pdf" (standardDocInfo { author = "alex", compressed = False}) rect $ 
+          outFile = "data/" ++ (client_name userArgs) ++ "/invoices/" ++ (unpack (Person.name person)) ++ " Invoice " ++ invoice_number userArgs ++ ".pdf"
+      putStrLn "Generating output file:"
+      putStrLn outFile
+      runPdf outFile (standardDocInfo { author = "alex", compressed = False}) rect $ 
         mapM (renderPage timesRoman person client paginatedEntries amountDue userArgs totalHeight) paginatedEntries
       return ()
