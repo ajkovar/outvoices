@@ -11,7 +11,7 @@ data Timesheet = Timesheet
     , task :: !String
     , notes :: !String
     , hours :: !Double
-    }
+    } deriving (Show, Eq)
 
 instance FromNamedRecord Timesheet where
     parseNamedRecord r = Timesheet <$> r .: "Date" <*> r .: "Client" <*> r .: "Project" <*> r .: "Task" <*> r .: "Notes" <*> r .: "Hours"

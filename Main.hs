@@ -20,7 +20,7 @@ import qualified Data.Vector
 import Data.Vector (Vector)
 import qualified Timesheet
 import Timesheet (Timesheet(Timesheet))
-import OutVoice (outvoice, rate, invoice_number, due_date, client_name, issue_date, timesheet_file)
+import OutVoice (OutVoice(OutVoice), outvoice, rate, invoice_number, due_date, client_name, issue_date, timesheet_file)
 import Control.Monad.Trans.Except (runExceptT, ExceptT(ExceptT))
 import Control.Error.Util (note)
 import Utils (formatMoney, paginate)
@@ -135,6 +135,21 @@ renderFooter timesRoman amountDue y = do
   setColor black
   drawLine (PDFFont timesRoman 10) amountDue 530 (y - 94)
 
+renderHeader :: AnyFont -> Person -> Person -> Text -> Double -> OutVoice -> Draw ()
+renderHeader timesRoman person client amountDue height userArgs = do
+  renderMyInfo person timesRoman 400 (height-60)
+  renderClientInfo client timesRoman 30 (height-200)
+  renderTitledLine timesRoman "Date of Issue" (pack $ issue_date userArgs) 180 (height-200)
+  renderTitledLine timesRoman "Due Date" (pack $ due_date userArgs) 180 (height-240)
+  renderTitledLine timesRoman "Invoice Number" (pack $ invoice_number userArgs) 280 (height-200)
+  setColor kingFisherDaisy
+  stroke $ Line 30 (height-280) 580 (height-280)
+  drawLine (PDFFont timesRoman 9) (pack "Description") 30 (height-300)
+  drawLine (PDFFont timesRoman 9) (pack "Rate") 400 (height-300)
+  drawLine (PDFFont timesRoman 9) (pack "Qty") 460 (height-300)
+  drawLine (PDFFont timesRoman 9) (pack "Line Total") 520 (height-300)
+  renderAmountDue timesRoman "Amount Due" amountDue 480 (height-200)
+
 type AppConfig = (Person, Person, Vector Timesheet, AnyFont)
 
 loadConfig' :: String -> String -> ExceptT String IO AppConfig
@@ -144,7 +159,7 @@ loadConfig' clientName timesheetFile = do
   myConfig <- ExceptT $ Aeson.eitherDecode <$> readFile selfConfigFile
   clientConfig <- ExceptT $ Aeson.eitherDecode <$> readFile clientConfigFile
   csvData <- ExceptT $ decodeByName <$> readFile timesheetFile
-  timesRoman <- ExceptT $ note "Error loading font" <$> mkStdFont Times_Roman 
+  timesRoman <- ExceptT $ note "Error loading Times Roman font" <$> mkStdFont Times_Roman 
   return (myConfig, clientConfig, snd csvData, timesRoman)
 
 loadConfig :: String -> String -> IO (Either String AppConfig)
@@ -160,29 +175,20 @@ main = do
     Left error -> putStrLn error
     Right (person, client, timesheetEntries, timesRoman) -> do
       let paginatedEntries = paginate timesheetEntries
-          firstPage = take 1 paginatedEntries
+          firstPage = head paginatedEntries
           rest = drop 1 paginatedEntries
           lastPage = last paginatedEntries
       runPdf "demo.pdf" (standardDocInfo { author = "alex", compressed = False}) rect $ do
         page1 <- addPage Nothing
         newSection  "Text encoding" Nothing Nothing $ do
           drawWithPage page1 $ do
-            renderMyInfo person timesRoman 400 (height-60)
-            renderClientInfo client timesRoman 30 (height-200)
-            renderTitledLine timesRoman "Date of Issue" (pack $ issue_date userArgs) 180 (height-200)
-            renderTitledLine timesRoman "Due Date" (pack $ due_date userArgs) 180 (height-240)
-            renderTitledLine timesRoman "Invoice Number" (pack $ invoice_number userArgs) 280 (height-200)
-            setColor kingFisherDaisy
-            stroke $ Line 30 (height-280) 580 (height-280)
-            drawLine (PDFFont timesRoman 9) (pack "Description") 30 (height-300)
-            drawLine (PDFFont timesRoman 9) (pack "Rate") 400 (height-300)
-            drawLine (PDFFont timesRoman 9) (pack "Qty") 460 (height-300)
-            drawLine (PDFFont timesRoman 9) (pack "Line Total") 520 (height-300)
             let total = Data.Vector.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 timesheetEntries
             let amountDue = (pack $ "$" ++ formatMoney (total * (rate userArgs)))
-            renderAmountDue timesRoman "Amount Due" amountDue 480 (height-200)
             let rowYInit = height - 320
-                y = (rowYInit - ((fromIntegral (Data.Vector.length timesheetEntries + 1)) :: Double) * 65.00)
+                y = rowYInit - ((fromIntegral (Data.Vector.length timesheetEntries + 1)) :: Double) * 65.00
+
+            renderHeader timesRoman person client amountDue height userArgs
             Data.Vector.imapM (renderRow timesRoman (rate userArgs) rowYInit) timesheetEntries
-            renderFooter timesRoman amountDue y
-            return ()
+            if firstPage == lastPage && Data.Vector.length lastPage < 5 
+              then renderFooter timesRoman amountDue y
+              else return ()

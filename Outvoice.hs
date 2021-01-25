@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+
 module OutVoice where
 
 import System.Console.CmdArgs (def, help, (&=), Data, Typeable, summary)
