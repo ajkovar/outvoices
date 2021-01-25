@@ -23,8 +23,8 @@ paginate :: Vector v a => v a -> [v a]
 paginate v
   | V.length v > firstPage = V.take firstPage v : VSplit.chunksOf rest (drop rest v)
   | otherwise = [v] 
-  where firstPage = 15
-        rest = 30
+  where firstPage = 8
+        rest = 20
 
   
 

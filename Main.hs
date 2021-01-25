@@ -167,12 +167,13 @@ renderHeader timesRoman person client amountDue height userArgs = do
 
 renderPage :: AnyFont -> Person -> Person -> [Vector Timesheet] -> Text -> OutVoice -> Double -> Vector Timesheet -> PDF ()
 renderPage timesRoman person client allEntries amountDue userArgs height pageEntries = do
-  page1 <- addPage Nothing
+  page <- addPage Nothing
   newSection  "Text encoding" Nothing Nothing $ do
-    drawWithPage page1 $ do
-      let rowYInit = height - 320
+    drawWithPage page $ do
+      let isFirstPage = pageEntries == head allEntries
+          rowYInit = if isFirstPage then height - 320 else height - 60
           y = rowYInit - ((fromIntegral (Data.Vector.length pageEntries + 1)) :: Double) * 65.00
-      if pageEntries == last allEntries 
+      if isFirstPage
         then renderHeader timesRoman person client amountDue height userArgs
         else return ()
       Data.Vector.imapM (renderRow timesRoman (rate userArgs) rowYInit) pageEntries
@@ -182,16 +183,16 @@ renderPage timesRoman person client allEntries amountDue userArgs height pageEnt
 
 main :: IO ()
 main = do
-  let height = 892
-      rect = PDFRect 0 0 612 height
   userArgs <- cmdArgs outvoice
   loadedData <- loadConfig (client_name userArgs) (timesheet_file userArgs)
   case loadedData of 
     Left error -> putStrLn error
     Right (person, client, timesheetEntries, timesRoman) -> do
-      let paginatedEntries = paginate timesheetEntries
+      let totalHeight = 892
+          paginatedEntries = paginate timesheetEntries
           total = Data.Vector.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 timesheetEntries
           amountDue = (pack $ "$" ++ formatMoney (total * (rate userArgs)))
+          rect = PDFRect 0 0 612 totalHeight
       runPdf "demo.pdf" (standardDocInfo { author = "alex", compressed = False}) rect $ 
-        mapM (renderPage timesRoman person client paginatedEntries amountDue userArgs height) paginatedEntries
+        mapM (renderPage timesRoman person client paginatedEntries amountDue userArgs totalHeight) paginatedEntries
       return ()
