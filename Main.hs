@@ -6,39 +6,19 @@ import Graphics.PDF (
   Color, Draw, PDFText, AnyFont, black, strokeColor, fillColor, setFont, textStart, renderMode, 
   getHeight, leading, Color(Rgb), black, displayText, startNewLine, author, PDFFont(PDFFont), 
   compressed, stroke, Line(Line), runPdf, addPage, newSection, drawWithPage, TextMode(FillText), 
-  drawText, mkStdFont, PDFRect(PDFRect), FontName(Times_Roman), standardDocInfo, PDF
+  drawText, PDFRect(PDFRect), FontName(Times_Roman), standardDocInfo, PDF
   )
 import Data.Text (Text, pack, unpack)
 import qualified Person
 import Person (Person(Person))
-import Prelude hiding (readFile)
-import Data.ByteString.Lazy (readFile)
-import qualified Data.Aeson as Aeson
 import System.Console.CmdArgs (cmdArgs)
-import Data.Csv (decodeByName)
 import qualified Data.Vector
 import Data.Vector (Vector)
 import qualified Timesheet
 import Timesheet (Timesheet(Timesheet))
 import OutVoice (OutVoice(OutVoice), outvoice, rate, invoice_number, due_date, client_name, issue_date, timesheet_file)
-import Control.Monad.Trans.Except (runExceptT, ExceptT(ExceptT))
-import Control.Error.Util (note)
 import Utils (formatMoney, paginate)
-
-type AppConfig = (Person, Person, Vector Timesheet, AnyFont)
-
-loadConfig' :: String -> String -> ExceptT String IO AppConfig
-loadConfig' clientName timesheetFile = do
-  let selfConfigFile = "data/me.json"
-      clientConfigFile = "data/" ++ clientName ++ "/info.json"
-  myConfig <- ExceptT $ Aeson.eitherDecode <$> readFile selfConfigFile
-  clientConfig <- ExceptT $ Aeson.eitherDecode <$> readFile clientConfigFile
-  csvData <- ExceptT $ decodeByName <$> readFile timesheetFile
-  timesRoman <- ExceptT $ note "Error loading Times Roman font" <$> mkStdFont Times_Roman 
-  return (myConfig, clientConfig, snd csvData, timesRoman)
-
-loadConfig :: String -> String -> IO (Either String AppConfig)
-loadConfig client timesheetFile = runExceptT $ loadConfig' client timesheetFile
+import Config (loadConfig)
 
 kingFisherDaisy :: Color
 kingFisherDaisy = Rgb 0.32 0.11 0.52

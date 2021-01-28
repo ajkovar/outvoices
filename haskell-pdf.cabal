@@ -24,6 +24,7 @@ executable haskell-pdf
     Timesheet
     Outvoice
     Utils
+    Config
   -- other-extensions:
   build-depends:       
       base >=4.13 && <4.14,
