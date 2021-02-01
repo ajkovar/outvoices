@@ -14,7 +14,12 @@ import Timesheet (Timesheet(Timesheet))
 import Control.Monad.Trans.Except (runExceptT, ExceptT(ExceptT))
 import Control.Error.Util (note)
 
-type AppConfig = (Person, Person, Vector Timesheet, AnyFont)
+data AppConfig = AppConfig {
+  me :: Person, 
+  client :: Person, 
+  timesheets :: Vector Timesheet, 
+  font :: AnyFont
+  }
 
 loadConfig' :: String -> String -> ExceptT String IO AppConfig
 loadConfig' clientName timesheetFile = do
@@ -24,7 +29,12 @@ loadConfig' clientName timesheetFile = do
   clientConfig <- ExceptT $ Aeson.eitherDecode <$> readFile clientConfigFile
   csvData <- ExceptT $ decodeByName <$> readFile timesheetFile
   timesRoman <- ExceptT $ note "Error loading Times Roman font" <$> mkStdFont Times_Roman 
-  return (myConfig, clientConfig, snd csvData, timesRoman)
+  return AppConfig {
+    me = myConfig, 
+    client = clientConfig, 
+    timesheets = snd csvData, 
+    font = timesRoman
+    }
 
 loadConfig :: String -> String -> IO (Either String AppConfig)
 loadConfig client timesheetFile = runExceptT $ loadConfig' client timesheetFile

@@ -1,24 +1,25 @@
-{-# LANGUAGE ScopedTypeVariables, MultiParamTypeClasses, OverloadedStrings, DeriveDataTypeable, CPP  #-}
+{-# LANGUAGE ScopedTypeVariables, MultiParamTypeClasses, OverloadedStrings, CPP #-}
 
 module Main where
 
 import Graphics.PDF (
-  Color, Draw, PDFText, AnyFont, black, strokeColor, fillColor, setFont, textStart, renderMode, 
-  getHeight, leading, Color(Rgb), black, displayText, startNewLine, author, PDFFont(PDFFont), 
-  compressed, stroke, Line(Line), runPdf, addPage, newSection, drawWithPage, TextMode(FillText), 
+  Color, Draw, PDFText, AnyFont, black, strokeColor, fillColor, setFont, textStart, renderMode,
+  getHeight, leading, Color(Rgb), black, displayText, startNewLine, author, PDFFont(PDFFont),
+  compressed, stroke, Line(Line), runPdf, addPage, newSection, drawWithPage, TextMode(FillText),
   drawText, PDFRect(PDFRect), FontName(Times_Roman), standardDocInfo, PDF
   )
 import Data.Text (Text, pack, unpack)
 import qualified Person
-import Person (Person(Person))
+import Person (Person(Person), name)
 import System.Console.CmdArgs (cmdArgs)
-import qualified Data.Vector
-import Data.Vector (Vector)
+import Prelude hiding (foldr, length)
+import Data.Vector (Vector, foldr, imapM, length)
 import qualified Timesheet
 import Timesheet (Timesheet(Timesheet))
 import OutVoice (OutVoice(OutVoice), outvoice, rate, invoice_number, due_date, client_name, issue_date, timesheet_file)
 import Utils (formatMoney, paginate)
-import Config (loadConfig)
+import Config (loadConfig, AppConfig(AppConfig), timesheets, me, client, font)
+import Control.Monad (when)
 
 kingFisherDaisy :: Color
 kingFisherDaisy = Rgb 0.32 0.11 0.52
@@ -38,7 +39,7 @@ drawLine theFont@(PDFFont f s) text x y = do
   drawText $ do
     setFont theFont
     textStart x y
-    leading $ (getHeight f s) + 3
+    leading $ getHeight f s + 3
     renderMode FillText
     displayText text
 
@@ -47,15 +48,15 @@ drawLines theFont@(PDFFont f s) lines x y = do
   drawText $ do
     setFont theFont
     textStart x y
-    leading $ (getHeight f s) + 3
+    leading $ getHeight f s + 3
     renderMode FillText
-    mapM displayLine lines 
+    mapM displayLine lines
 
 renderMyInfo :: Person -> AnyFont -> Double -> Double -> Draw [()]
 renderMyInfo person timesRoman x y = do
   setColor black
   let font = PDFFont timesRoman 10
-  let nameAndNumber = (fmap (\f -> f person) [Person.name, Person.telephone])
+  let nameAndNumber = fmap (\f -> f person) [Person.name, Person.telephone]
   drawLines font nameAndNumber x y
   drawLines font (Person.addressFields person) (x+90) y
 
@@ -65,7 +66,7 @@ renderClientInfo client timesRoman x y = do
   setColor kingFisherDaisy
   drawLine font "Billed To" x y
   setColor black
-  let fields = [Person.name client] ++ (Person.addressFields client)
+  let fields = Person.name client : Person.addressFields client
   drawLines font fields x (y-13)
 
 renderTitledLine :: AnyFont -> Text -> Text -> Double -> Double -> Draw ()
@@ -87,18 +88,18 @@ renderRow :: AnyFont -> Double -> Double -> Int -> Timesheet -> Draw ()
 renderRow fontType rate yInit i timesheetItem = do
   setColor black
   let date = Timesheet.date timesheetItem
-      y = (yInit - (fromIntegral i :: Double) * 65.00)
+      y = yInit - (fromIntegral i :: Double) * 65.00
       client = Timesheet.client timesheetItem
       project = Timesheet.project timesheetItem
       description = "(" ++ client ++ " - " ++ project ++ ") - " ++ date
       hours = Timesheet.hours timesheetItem
   drawLine (PDFFont fontType 10) (pack "Time") 30 y
   drawLine (PDFFont fontType 9) (pack description) 30 (y - 12)
-  drawLine (PDFFont fontType 9) (pack ((Timesheet.task timesheetItem) ++ " -")) 30 (y - 22)
+  drawLine (PDFFont fontType 9) (pack (Timesheet.task timesheetItem ++ " -")) 30 (y - 22)
   drawLine (PDFFont fontType 8) (pack (Timesheet.notes timesheetItem)) 30 (y - 34)
-  drawLine (PDFFont fontType 8) (pack $ "$" ++ (formatMoney rate)) 400 y
+  drawLine (PDFFont fontType 8) (pack $ "$" ++ formatMoney rate) 400 y
   drawLine (PDFFont fontType 8) (pack (show hours)) 460 y
-  drawLine (PDFFont fontType 8) (pack $ "$" ++ (formatMoney (rate * hours))) 520 y
+  drawLine (PDFFont fontType 8) (pack $ "$" ++ formatMoney (rate * hours)) 520 y
   setColor $ Rgb 0.9 0.9 0.9
   stroke $ Line 30 (y - 45) 580 (y - 45)
 
@@ -111,20 +112,20 @@ renderFooter timesRoman amountDue y = do
   drawLine (PDFFont timesRoman 10) amountDue 530 y
   drawLine (PDFFont timesRoman 10) (pack "Tax") leftX (y - 16)
   drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 16)
-  
+
   setColor $ Rgb 0.9 0.9 0.9
   stroke $ Line 340 (y - 28) 580 (y - 28)
-  
+
   setColor black
   drawLine (PDFFont timesRoman 10) (pack "Total") leftX (y - 44)
   drawLine (PDFFont timesRoman 10) amountDue 530 (y - 44)
   drawLine (PDFFont timesRoman 10) (pack "Amount Paid") leftX (y - 60)
   drawLine (PDFFont timesRoman 10) zeroAmount 530 (y - 60)
-  
+
   setColor $ Rgb 0.9 0.9 0.9
   stroke $ Line 340 (y - 74) 580 (y - 74)
   stroke $ Line 340 (y - 76) 580 (y - 76)
-  
+
   setColor kingFisherDaisy
   drawLine (PDFFont timesRoman 12) (pack "Amount Due") leftX (y - 94)
   setColor black
@@ -145,47 +146,62 @@ renderHeader timesRoman person client amountDue height userArgs = do
   drawLine (PDFFont timesRoman 9) (pack "Line Total") 520 (height-300)
   renderAmountDue timesRoman "Amount Due" amountDue 480 (height-200)
 
-renderPage :: AnyFont -> Person -> Person -> [Vector Timesheet] -> Text -> OutVoice -> Double -> Vector Timesheet -> PDF ()
-renderPage timesRoman person client allEntries amountDue userArgs height pageEntries = do
+renderPage :: AppConfig -> [Vector Timesheet] -> Text -> OutVoice -> Double -> Vector Timesheet -> PDF ()
+renderPage config allEntries amountDue userArgs height pageEntries = do
   let isFirstPage = pageEntries == head allEntries
       isLastPage = pageEntries == last allEntries
       rowYInit = if isFirstPage then height - 320 else height - 60
-      y = rowYInit - ((fromIntegral (Data.Vector.length pageEntries + 1)) :: Double) * 65.00
+      y = rowYInit - (fromIntegral (length pageEntries + 1) :: Double) * 65.00
       maxRows = if isFirstPage then 6 else 11
-      showFooter =  Data.Vector.length pageEntries < maxRows
+      showFooter =  length pageEntries < maxRows
+      fontType = font config
   page <- addPage Nothing
   newSection  "Text encoding" Nothing Nothing $ do
     drawWithPage page $ do
-      if isFirstPage
-        then renderHeader timesRoman person client amountDue height userArgs
-        else return ()
-      Data.Vector.imapM (renderRow timesRoman (rate userArgs) rowYInit) pageEntries
-      if showFooter && isLastPage
-        then renderFooter timesRoman amountDue y
-        else return ()
-  if not showFooter && isLastPage
-    then do
-      page <- addPage Nothing
-      newSection  "Text encoding" Nothing Nothing $ do
-        drawWithPage page $ do
-          renderFooter timesRoman amountDue (height - 60)
-    else return ()
+      when isFirstPage $ renderHeader fontType (me config) (client config) amountDue height userArgs
+      imapM (renderRow fontType (rate userArgs) rowYInit) pageEntries
+      when (showFooter && isLastPage) $ renderFooter fontType amountDue y
+  when (not showFooter && isLastPage) $ do
+    page <- addPage Nothing
+    newSection  "Text encoding" Nothing Nothing $ do
+      drawWithPage page $ do
+        renderFooter fontType amountDue (height - 60)
+
+generatePdf :: AppConfig -> OutVoice -> IO ()
+generatePdf config userArgs = do
+  let totalHeight = 892
+      paginatedEntries = paginate (timesheets config)
+      total = foldr (\sheet s -> s + Timesheet.hours sheet) 0 (timesheets config)
+      amountDue = pack $ "$" ++ formatMoney (total * rate userArgs)
+      myName = (Person.name . me) config
+      rect = PDFRect 0 0 612 totalHeight
+      outFile = "data/" ++ client_name userArgs ++ "/invoices/" ++ unpack myName ++ " Invoice " ++ invoice_number userArgs ++ ".pdf"
+  putStrLn "Generating output file:"
+  putStrLn outFile
+  runPdf outFile (standardDocInfo { author = myName, compressed = False}) rect $
+    mapM (renderPage config paginatedEntries amountDue userArgs totalHeight) paginatedEntries
+  return ()
 
 main :: IO ()
 main = do
   userArgs <- cmdArgs outvoice
   loadedData <- loadConfig (client_name userArgs) (timesheet_file userArgs)
-  case loadedData of 
+  case loadedData of
     Left error -> putStrLn error
-    Right (person, client, timesheetEntries, timesRoman) -> do
-      let totalHeight = 892
-          paginatedEntries = paginate timesheetEntries
-          total = Data.Vector.foldr (\sheet s -> s + (Timesheet.hours sheet)) 0 timesheetEntries
-          amountDue = (pack $ "$" ++ formatMoney (total * (rate userArgs)))
-          rect = PDFRect 0 0 612 totalHeight
-          outFile = "data/" ++ (client_name userArgs) ++ "/invoices/" ++ (unpack (Person.name person)) ++ " Invoice " ++ invoice_number userArgs ++ ".pdf"
-      putStrLn "Generating output file:"
-      putStrLn outFile
-      runPdf outFile (standardDocInfo { author = "alex", compressed = False}) rect $ 
-        mapM (renderPage timesRoman person client paginatedEntries amountDue userArgs totalHeight) paginatedEntries
-      return ()
+    Right config -> generatePdf config userArgs
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
