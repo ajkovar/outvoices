@@ -11,14 +11,13 @@ import Graphics.PDF (
 import Data.Text (Text, pack, unpack)
 import qualified Person
 import Person (Person(Person), name)
-import System.Console.CmdArgs (cmdArgs)
 import Prelude hiding (foldr, length)
 import Data.Vector (Vector, foldr, imapM, length)
 import qualified Timesheet
 import Timesheet (Timesheet(Timesheet))
-import OutVoice (OutVoice(OutVoice), outvoice, rate, invoice_number, due_date, client_name, issue_date, timesheet_file)
+import OutVoice (OutVoice(OutVoice), rate, invoice_number, due_date, client_name, issue_date, timesheet_file)
 import Utils (formatMoney, paginate)
-import Config (loadConfig, AppConfig(AppConfig), timesheets, me, client, font)
+import Config (loadConfig, AppConfig(AppConfig, userArgs), timesheets, me, client, font)
 import Control.Monad (when)
 
 kingFisherDaisy :: Color
@@ -167,27 +166,27 @@ renderPage config allEntries amountDue userArgs height pageEntries = do
       drawWithPage page $ do
         renderFooter fontType amountDue (height - 60)
 
-generatePdf :: AppConfig -> OutVoice -> IO ()
-generatePdf config userArgs = do
+generatePdf :: AppConfig -> IO ()
+generatePdf config = do
   let totalHeight = 892
       paginatedEntries = paginate (timesheets config)
+      args = userArgs config
       total = foldr (\sheet s -> s + Timesheet.hours sheet) 0 (timesheets config)
-      amountDue = pack $ "$" ++ formatMoney (total * rate userArgs)
+      amountDue = pack $ "$" ++ formatMoney (total * rate args)
       myName = (Person.name . me) config
       rect = PDFRect 0 0 612 totalHeight
-      outFile = "data/" ++ client_name userArgs ++ "/invoices/" ++ unpack myName ++ " Invoice " ++ invoice_number userArgs ++ ".pdf"
+      outFile = "data/" ++ client_name args ++ "/invoices/" ++ unpack myName ++ " Invoice " ++ invoice_number args ++ ".pdf"
   putStrLn "Generating output file:"
   putStrLn outFile
   runPdf outFile (standardDocInfo { author = myName, compressed = False}) rect $
-    mapM (renderPage config paginatedEntries amountDue userArgs totalHeight) paginatedEntries
+    mapM (renderPage config paginatedEntries amountDue args totalHeight) paginatedEntries
 
 main :: IO ()
 main = do
-  userArgs <- cmdArgs outvoice
-  loadedData <- loadConfig (client_name userArgs) (timesheet_file userArgs)
+  loadedData <- loadConfig 
   case loadedData of
     Left error -> putStrLn error
-    Right config -> generatePdf config userArgs
+    Right config -> generatePdf config
 
 
 

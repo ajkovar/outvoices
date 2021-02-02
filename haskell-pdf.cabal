@@ -39,6 +39,8 @@ executable haskell-pdf
       transformers,
       either,
       errors,
-      vector-split
+      vector-split,
+      time,
+      directory
   -- hs-source-dirs:
   default-language:    Haskell2010
