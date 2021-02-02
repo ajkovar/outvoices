@@ -153,15 +153,15 @@ renderPage config allEntries amountDue userArgs height pageEntries = do
       rowYInit = if isFirstPage then height - 320 else height - 60
       y = rowYInit - (fromIntegral (length pageEntries + 1) :: Double) * 65.00
       maxRows = if isFirstPage then 6 else 11
-      showFooter =  length pageEntries < maxRows
+      isEnoughSpaceForFooter =  length pageEntries < maxRows
       fontType = font config
   page <- addPage Nothing
   newSection  "Text encoding" Nothing Nothing $ do
     drawWithPage page $ do
       when isFirstPage $ renderHeader fontType (me config) (client config) amountDue height userArgs
       imapM (renderRow fontType (rate userArgs) rowYInit) pageEntries
-      when (showFooter && isLastPage) $ renderFooter fontType amountDue y
-  when (not showFooter && isLastPage) $ do
+      when (isEnoughSpaceForFooter && isLastPage) $ renderFooter fontType amountDue y
+  when (not isEnoughSpaceForFooter && isLastPage) $ do
     page <- addPage Nothing
     newSection  "Text encoding" Nothing Nothing $ do
       drawWithPage page $ do
@@ -180,7 +180,6 @@ generatePdf config userArgs = do
   putStrLn outFile
   runPdf outFile (standardDocInfo { author = myName, compressed = False}) rect $
     mapM (renderPage config paginatedEntries amountDue userArgs totalHeight) paginatedEntries
-  return ()
 
 main :: IO ()
 main = do
