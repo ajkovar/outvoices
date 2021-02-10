@@ -1,0 +1,9 @@
+{
+  "name": "Sample Client LLC",
+  "address": "123 Main St",
+  "telephone": "+1 (123) xxx-xxxx",
+  "city": "Springfield",
+  "state": "Colorado",
+  "zip": "80206",
+  "country": "United States"
+}

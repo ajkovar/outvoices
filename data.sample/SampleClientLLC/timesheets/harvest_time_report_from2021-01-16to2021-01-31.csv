@@ -1,0 +1,5 @@
+Date,Client,Project,Project Code,Task,Notes,Hours,Billable?,Invoiced?,Approved?,First Name,Last Name,Employee?,External Reference URL
+2021-01-16,"Some Client, LLC",Awesome Project,,Rails Development,Wrote some code,2.0,Yes,No,Yes,Joe,Shmoe,No,
+2021-01-19,"Some Client, LLC",Awesome Project,,Rails Development,Investigated problem with stuff,0.25,Yes,No,No,Joe,Shmoe,No,
+2021-01-19,"Some Client, LLC",Awesome Project,,Rails Development,Finished implementing x feature,0.5,Yes,No,No,Joe,Shmoe,No,
+2021-01-19,"Some Client, LLC",Awesome Project,,Rails Development,Finished implementing y feature,0.5,Yes,No,No,Joe,Shmoe,No,
