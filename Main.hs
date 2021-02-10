@@ -15,9 +15,9 @@ import Prelude hiding (foldr, length)
 import Data.Vector (Vector, foldr, imapM, length)
 import qualified Timesheet
 import Timesheet (Timesheet(Timesheet))
-import OutVoice (OutVoice(OutVoice), rate, invoice_number, due_date, client_name, issue_date, timesheet_file)
+import OutVoice (OutVoice(OutVoice), rate, invoice_number, client_name, timesheet_file)
 import Utils (formatMoney, paginate)
-import Config (loadConfig, AppConfig(AppConfig, userArgs), timesheets, me, client, font)
+import Config (loadConfig, AppConfig(AppConfig, userArgs), timesheets, me, client, font, issueDate, dueDate)
 import Control.Monad (when)
 
 kingFisherDaisy :: Color
@@ -130,12 +130,12 @@ renderFooter timesRoman amountDue y = do
   setColor black
   drawLine (PDFFont timesRoman 10) amountDue 530 (y - 94)
 
-renderHeader :: AnyFont -> Person -> Person -> Text -> Double -> OutVoice -> Draw ()
-renderHeader timesRoman person client amountDue height userArgs = do
-  renderMyInfo person timesRoman 400 (height-60)
-  renderClientInfo client timesRoman 30 (height-200)
-  renderTitledLine timesRoman "Date of Issue" (pack $ issue_date userArgs) 180 (height-200)
-  renderTitledLine timesRoman "Due Date" (pack $ due_date userArgs) 180 (height-240)
+renderHeader :: AnyFont -> AppConfig -> Text -> Double -> OutVoice -> Draw ()
+renderHeader timesRoman config amountDue height userArgs = do
+  renderMyInfo (me config) timesRoman 400 (height-60)
+  renderClientInfo (client config) timesRoman 30 (height-200)
+  renderTitledLine timesRoman "Date of Issue" (pack $ show $ issueDate config) 180 (height-200)
+  renderTitledLine timesRoman "Due Date" (pack $ show $ dueDate config) 180 (height-240)
   renderTitledLine timesRoman "Invoice Number" (pack $ invoice_number userArgs) 280 (height-200)
   setColor kingFisherDaisy
   stroke $ Line 30 (height-280) 580 (height-280)
@@ -157,7 +157,7 @@ renderPage config allEntries amountDue userArgs height pageEntries = do
   page <- addPage Nothing
   newSection  "Text encoding" Nothing Nothing $ do
     drawWithPage page $ do
-      when isFirstPage $ renderHeader fontType (me config) (client config) amountDue height userArgs
+      when isFirstPage $ renderHeader fontType config amountDue height userArgs
       imapM (renderRow fontType (rate userArgs) rowYInit) pageEntries
       when (isEnoughSpaceForFooter && isLastPage) $ renderFooter fontType amountDue y
   when (not isEnoughSpaceForFooter && isLastPage) $ do

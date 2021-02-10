@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, MultiParamTypeClasses, OverloadedStrings, DeriveDataTypeable, CPP  #-}
+{-# LANGUAGE ScopedTypeVariables, MultiParamTypeClasses, OverloadedStrings, CPP #-}
 
 module Config where
 
@@ -14,14 +14,20 @@ import qualified Timesheet
 import Timesheet (Timesheet(Timesheet))
 import Control.Monad.Trans.Except (runExceptT, ExceptT(ExceptT))
 import Control.Error.Util (note)
-import OutVoice (outvoice, OutVoice (timesheet_file, client_name))
+import OutVoice (outvoice, OutVoice (timesheet_file, client_name, billingCycle), BillingCycle (Monthly, Semimonthly))
+import Data.Time ( Day, UTCTime(utctDay), fromGregorian )
+import Data.Time.Calendar ( toGregorian, addGregorianMonthsClip )
+import Data.Time.Clock (getCurrentTime)
+import Data.Functor ((<&>))
 
 data AppConfig = AppConfig {
   me :: Person,
   client :: Person,
   timesheets :: Vector Timesheet,
   font :: AnyFont,
-  userArgs :: OutVoice
+  userArgs :: OutVoice,
+  issueDate :: Day,
+  dueDate :: Day
   }
 
 loadConfig' :: ExceptT String IO AppConfig
@@ -33,14 +39,20 @@ loadConfig' = do
   clientConfig <- ExceptT $ Aeson.eitherDecode <$> readFile clientConfigFile
   csvData <- ExceptT $ decodeByName <$> readFile (timesheet_file userArgs)
   timesRoman <- ExceptT $ note "Error loading Times Roman font" <$> mkStdFont Times_Roman
+  (year, month, day) <- ExceptT $ Right . toGregorian . utctDay <$> getCurrentTime
+  let issueDate = case billingCycle userArgs of
+                     Monthly -> fromGregorian year month 1
+                     Semimonthly -> fromGregorian year month (if day > 15 then 16 else 1)
+      dueDate = addGregorianMonthsClip 1 issueDate
   return AppConfig {
     me = myConfig,
     client = clientConfig,
     timesheets = snd csvData,
     font = timesRoman,
-    userArgs = userArgs
+    userArgs = userArgs,
+    issueDate = issueDate,
+    dueDate = dueDate
     }
 
 loadConfig :: IO (Either String AppConfig)
 loadConfig = runExceptT loadConfig'
-
