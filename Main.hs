@@ -16,7 +16,7 @@ import Data.Vector (Vector, foldr, imapM, length)
 import qualified Timesheet
 import Timesheet (Timesheet(Timesheet))
 import OutVoice (OutVoice(OutVoice), rate, client_name, timesheet_file)
-import Utils (formatMoney, paginate)
+import Utils (formatMoney, paginate, escapeSpaces)
 import Config (loadConfig, AppConfig(AppConfig, userArgs), timesheets, me, client, font, issueDate, dueDate, invoiceNumber)
 import Control.Monad (when)
 import Text.Printf (printf)
@@ -176,7 +176,7 @@ generatePdf config = do
       rect = PDFRect 0 0 612 totalHeight
       outFile = "data/" ++ client_name args ++ "/invoices/" ++ unpack myName ++ " Invoice " ++ printf "%07d" (invoiceNumber config) ++ ".pdf"
   putStrLn "Generating output file:"
-  putStrLn outFile
+  putStrLn $ escapeSpaces outFile
   runPdf outFile (standardDocInfo { author = myName, compressed = False}) rect $
     mapM (renderPage config paginatedEntries amountDue args totalHeight) paginatedEntries
 

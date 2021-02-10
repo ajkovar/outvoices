@@ -13,11 +13,14 @@ import Control.Monad.Trans.Except (ExceptT(ExceptT))
 import System.Directory (listDirectory)
 import Control.Error ( mapMaybe )
 
+escapeSpaces :: String -> String
+escapeSpaces = foldr (\ x -> (++) (if x == ' ' then "\\ " else [x])) ""
+
 extractNumbers :: String -> Maybe Int
 extractNumbers xs = readMaybe $ foldr (\ x -> (++) ([x | isDigit x])) "" xs
 
 curentInvoiceNumber :: IO Int
-curentInvoiceNumber = do 
+curentInvoiceNumber = do
   files <- listDirectory "./data/8bit/invoices"
   let versions = mapMaybe extractNumbers files
   case versions of
