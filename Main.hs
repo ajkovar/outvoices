@@ -15,10 +15,11 @@ import Prelude hiding (foldr, length)
 import Data.Vector (Vector, foldr, imapM, length)
 import qualified Timesheet
 import Timesheet (Timesheet(Timesheet))
-import OutVoice (OutVoice(OutVoice), rate, invoice_number, client_name, timesheet_file)
+import OutVoice (OutVoice(OutVoice), rate, client_name, timesheet_file)
 import Utils (formatMoney, paginate)
-import Config (loadConfig, AppConfig(AppConfig, userArgs), timesheets, me, client, font, issueDate, dueDate)
+import Config (loadConfig, AppConfig(AppConfig, userArgs), timesheets, me, client, font, issueDate, dueDate, invoiceNumber)
 import Control.Monad (when)
+import Text.Printf (printf)
 
 kingFisherDaisy :: Color
 kingFisherDaisy = Rgb 0.32 0.11 0.52
@@ -136,7 +137,7 @@ renderHeader timesRoman config amountDue height userArgs = do
   renderClientInfo (client config) timesRoman 30 (height-200)
   renderTitledLine timesRoman "Date of Issue" (pack $ show $ issueDate config) 180 (height-200)
   renderTitledLine timesRoman "Due Date" (pack $ show $ dueDate config) 180 (height-240)
-  renderTitledLine timesRoman "Invoice Number" (pack $ invoice_number userArgs) 280 (height-200)
+  renderTitledLine timesRoman "Invoice Number" (pack $ printf "%07d" $ invoiceNumber config) 280 (height-200)
   setColor kingFisherDaisy
   stroke $ Line 30 (height-280) 580 (height-280)
   drawLine (PDFFont timesRoman 9) (pack "Description") 30 (height-300)
@@ -155,16 +156,14 @@ renderPage config allEntries amountDue userArgs height pageEntries = do
       isEnoughSpaceForFooter =  length pageEntries < maxRows
       fontType = font config
   page <- addPage Nothing
-  newSection  "Text encoding" Nothing Nothing $ do
-    drawWithPage page $ do
-      when isFirstPage $ renderHeader fontType config amountDue height userArgs
-      imapM (renderRow fontType (rate userArgs) rowYInit) pageEntries
-      when (isEnoughSpaceForFooter && isLastPage) $ renderFooter fontType amountDue y
+  drawWithPage page $ do
+    when isFirstPage $ renderHeader fontType config amountDue height userArgs
+    imapM (renderRow fontType (rate userArgs) rowYInit) pageEntries
+    when (isEnoughSpaceForFooter && isLastPage) $ renderFooter fontType amountDue y
   when (not isEnoughSpaceForFooter && isLastPage) $ do
     page <- addPage Nothing
-    newSection  "Text encoding" Nothing Nothing $ do
-      drawWithPage page $ do
-        renderFooter fontType amountDue (height - 60)
+    drawWithPage page $ do
+      renderFooter fontType amountDue (height - 60)
 
 generatePdf :: AppConfig -> IO ()
 generatePdf config = do
@@ -175,7 +174,7 @@ generatePdf config = do
       amountDue = pack $ "$" ++ formatMoney (total * rate args)
       myName = (Person.name . me) config
       rect = PDFRect 0 0 612 totalHeight
-      outFile = "data/" ++ client_name args ++ "/invoices/" ++ unpack myName ++ " Invoice " ++ invoice_number args ++ ".pdf"
+      outFile = "data/" ++ client_name args ++ "/invoices/" ++ unpack myName ++ " Invoice " ++ printf "%07d" (invoiceNumber config) ++ ".pdf"
   putStrLn "Generating output file:"
   putStrLn outFile
   runPdf outFile (standardDocInfo { author = myName, compressed = False}) rect $

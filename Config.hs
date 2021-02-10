@@ -18,7 +18,7 @@ import OutVoice (outvoice, OutVoice (timesheet_file, client_name, billingCycle),
 import Data.Time ( Day, UTCTime(utctDay), fromGregorian )
 import Data.Time.Calendar ( toGregorian, addGregorianMonthsClip )
 import Data.Time.Clock (getCurrentTime)
-import Data.Functor ((<&>))
+import Utils (curentInvoiceNumber)
 
 data AppConfig = AppConfig {
   me :: Person,
@@ -27,7 +27,8 @@ data AppConfig = AppConfig {
   font :: AnyFont,
   userArgs :: OutVoice,
   issueDate :: Day,
-  dueDate :: Day
+  dueDate :: Day,
+  invoiceNumber :: Int
   }
 
 loadConfig' :: ExceptT String IO AppConfig
@@ -44,6 +45,8 @@ loadConfig' = do
                      Monthly -> fromGregorian year month 1
                      Semimonthly -> fromGregorian year month (if day > 15 then 16 else 1)
       dueDate = addGregorianMonthsClip 1 issueDate
+  number <- ExceptT $ Right <$> curentInvoiceNumber
+  
   return AppConfig {
     me = myConfig,
     client = clientConfig,
@@ -51,7 +54,8 @@ loadConfig' = do
     font = timesRoman,
     userArgs = userArgs,
     issueDate = issueDate,
-    dueDate = dueDate
+    dueDate = dueDate,
+    invoiceNumber = number
     }
 
 loadConfig :: IO (Either String AppConfig)
