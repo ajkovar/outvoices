@@ -45,8 +45,8 @@ loadConfig' = do
                      Monthly -> fromGregorian year month 1
                      Semimonthly -> fromGregorian year month (if day > 15 then 16 else 1)
       dueDate = addGregorianMonthsClip 1 issueDate
-  number <- ExceptT $ Right <$> curentInvoiceNumber
-  
+  number <- ExceptT $ Right <$> curentInvoiceNumber (client_name userArgs)
+
   return AppConfig {
     me = myConfig,
     client = clientConfig,
