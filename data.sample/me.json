@@ -1,0 +1,9 @@
+{
+  "name": "Joe Shmoe",
+  "address": "123 Fake St",
+  "telephone": "+1 (123) 456-7890",
+  "city": "Fakertown",
+  "state": "New York",
+  "zip": "12345",
+  "country": "United States"
+}
