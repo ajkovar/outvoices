@@ -10,7 +10,7 @@ import qualified Data.Vector.Split as VSplit
 import Data.Char (isDigit)
 import Text.Read (readMaybe)
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
-import System.Directory (listDirectory)
+import System.Directory (listDirectory, getModificationTime)
 import Control.Error ( mapMaybe )
 
 escapeSpaces :: String -> String
@@ -26,6 +26,13 @@ curentInvoiceNumber client = do
   case versions of
     [] -> return 1
     xs -> return $ maximum xs + 1
+
+getLatestTimesheet :: String -> IO FilePath
+getLatestTimesheet client = do
+  let directory = "./data/" ++ client ++ "/timesheets"
+  files <- fmap ((directory ++ "/") ++) . filter (\x -> head x /= '.') <$> listDirectory directory
+  modificationTimes <- mapM getModificationTime files
+  return $ snd $ maximum $ zip modificationTimes files
 
 formatMoney :: Double -> String
 formatMoney x = h++t

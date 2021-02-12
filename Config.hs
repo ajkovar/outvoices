@@ -18,7 +18,10 @@ import OutVoice (outvoice, OutVoice (timesheet_file, client_name, billingCycle),
 import Data.Time ( Day, UTCTime(utctDay), fromGregorian )
 import Data.Time.Calendar ( toGregorian, addGregorianMonthsClip )
 import Data.Time.Clock (getCurrentTime)
-import Utils (curentInvoiceNumber)
+import Utils (curentInvoiceNumber, getLatestTimesheet)
+import Data.Maybe (fromMaybe)
+import Control.Monad (when)
+import Control.Error (isNothing)
 
 data AppConfig = AppConfig {
   me :: Person,
@@ -38,8 +41,11 @@ loadConfig' = do
       clientConfigFile = "data/" ++ client_name userArgs ++ "/info.json"
   myConfig <- ExceptT $ Aeson.eitherDecode <$> readFile selfConfigFile
   clientConfig <- ExceptT $ Aeson.eitherDecode <$> readFile clientConfigFile
-  csvData <- ExceptT $ decodeByName <$> readFile (timesheet_file userArgs)
+  latestTimesheet <- ExceptT $ Right <$> getLatestTimesheet (client_name userArgs)
+  csvData <- ExceptT $ decodeByName <$> readFile (fromMaybe latestTimesheet (timesheet_file userArgs))
   timesRoman <- ExceptT $ note "Error loading Times Roman font" <$> mkStdFont Times_Roman
+  ExceptT $ Right <$> when (isNothing (timesheet_file userArgs)) 
+    (putStrLn ("No timesheet option specified.  Using last updated timesheet:\n" ++ latestTimesheet))
   (year, month, day) <- ExceptT $ Right . toGregorian . utctDay <$> getCurrentTime
   let issueDate = case billingCycle userArgs of
                      Monthly -> fromGregorian year month 1

@@ -7,13 +7,12 @@ import System.Console.CmdArgs (def, help, (&=), Data, Typeable, summary, name, D
 data BillingCycle = Monthly | Semimonthly deriving (Read, Show, Data)
 
 instance Default BillingCycle where def = Monthly
-
 data OutVoice = OutVoice {
   client_name :: String, 
   billingCycle :: BillingCycle, 
   -- issue_date :: String, 
   -- invoice_number :: String,
-  timesheet_file :: String,
+  timesheet_file :: Maybe String,
   rate :: Double
   } deriving (Show, Data, Typeable)
 
