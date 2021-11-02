@@ -12,6 +12,7 @@ import Text.Read (readMaybe)
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
 import System.Directory (listDirectory, getModificationTime)
 import Control.Error ( mapMaybe )
+import System.FilePath ((</>))
 
 escapeSpaces :: String -> String
 escapeSpaces = foldr (\ x -> (++) (if x == ' ' then "\\ " else [x])) ""
@@ -21,7 +22,7 @@ extractNumbers xs = readMaybe $ foldr (\ x -> (++) ([x | isDigit x])) "" xs
 
 curentInvoiceNumber :: String -> IO Int
 curentInvoiceNumber client = do
-  files <- listDirectory $ "./data/" ++ client ++ "/invoices"
+  files <- listDirectory $ "." </> "data" </> client </> "invoices"
   let versions = mapMaybe extractNumbers files
   case versions of
     [] -> return 1
@@ -29,8 +30,8 @@ curentInvoiceNumber client = do
 
 getLatestTimesheet :: String -> IO FilePath
 getLatestTimesheet client = do
-  let directory = "./data/" ++ client ++ "/timesheets"
-  files <- fmap ((directory ++ "/") ++) . filter (\x -> head x /= '.') <$> listDirectory directory
+  let directory = "." </> "data" </> client </> "timesheets"
+  files <- fmap (directory </>) . filter (\x -> head x /= '.') <$> listDirectory directory
   modificationTimes <- mapM getModificationTime files
   return $ snd $ maximum $ zip modificationTimes files
 

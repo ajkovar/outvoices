@@ -37,8 +37,8 @@ data AppConfig = AppConfig {
 loadConfig' :: ExceptT String IO AppConfig
 loadConfig' = do
   userArgs <- ExceptT $ Right <$> cmdArgs outvoice
-  let selfConfigFile = "data/me.json"
-      clientConfigFile = "data/" ++ client_name userArgs ++ "/info.json"
+  let selfConfigFile = "data" </> "me.json"
+      clientConfigFile = "data" </> client_name userArgs </> "info.json"
   myConfig <- ExceptT $ Aeson.eitherDecode <$> readFile selfConfigFile
   clientConfig <- ExceptT $ Aeson.eitherDecode <$> readFile clientConfigFile
   latestTimesheet <- ExceptT $ Right <$> getLatestTimesheet (client_name userArgs)

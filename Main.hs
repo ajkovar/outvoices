@@ -20,6 +20,7 @@ import Utils (formatMoney, paginate, escapeSpaces)
 import Config (loadConfig, AppConfig(AppConfig, userArgs), timesheets, me, client, font, issueDate, dueDate, invoiceNumber)
 import Control.Monad (when)
 import Text.Printf (printf)
+import System.FilePath ((</>))
 
 kingFisherDaisy :: Color
 kingFisherDaisy = Rgb 0.32 0.11 0.52
@@ -174,7 +175,8 @@ generatePdf config = do
       amountDue = pack $ "$" ++ formatMoney (total * rate args)
       myName = (Person.name . me) config
       rect = PDFRect 0 0 612 totalHeight
-      outFile = "data/" ++ client_name args ++ "/invoices/" ++ unpack myName ++ " Invoice " ++ printf "%07d" (invoiceNumber config) ++ ".pdf"
+      fileName = unpack myName ++ " Invoice " ++ printf "%07d" (invoiceNumber config) ++ ".pdf"
+      outFile = "data" </> client_name args </> "invoices" </> fileName
   putStrLn "Generating output file:"
   putStrLn $ escapeSpaces outFile
   runPdf outFile (standardDocInfo { author = myName, compressed = False}) rect $
@@ -186,19 +188,3 @@ main = do
   case loadedData of
     Left error -> putStrLn error
     Right config -> generatePdf config
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

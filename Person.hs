@@ -17,11 +17,11 @@ data Person = Person {
   } deriving (Generic, Show)
 
 cityState :: Person -> T.Text
-cityState p = T.pack $ (T.unpack (Person.city p)) ++ ", " ++ (T.unpack (Person.state p))
+cityState p = T.pack $ T.unpack (Person.city p) ++ ", " ++ T.unpack (Person.state p)
 
 addressFields :: Person -> [T.Text]
-addressFields p = fmap (\f -> f p) [ 
-  Person.address, 
+addressFields p = fmap (\f -> f p) [
+  Person.address,
   Person.cityState,
   Person.zip,
   Person.country
