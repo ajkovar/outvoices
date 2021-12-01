@@ -22,6 +22,7 @@ import Utils (curentInvoiceNumber, getLatestTimesheet)
 import Data.Maybe (fromMaybe)
 import Control.Monad (when)
 import Control.Error (isNothing)
+import System.FilePath ((</>))
 
 data AppConfig = AppConfig {
   me :: Person,
